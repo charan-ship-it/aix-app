@@ -1,0 +1,13 @@
+import { z } from 'zod';
+import { and,eq } from 'drizzle-orm';
+import { getDb } from '@/db';
+import { credentials } from '@/db/schema';
+import { AppError,errorResponse,readBody,requireUser,requireAdmin } from '@/lib/server/http';
+import { connectionSettings,seal } from '@/lib/server/secrets';
+export async function GET(){try{const u=await requireUser();return Response.json(await connectionSettings(u.organizationId),{headers:{'Cache-Control':'no-store'}})}catch(e){return errorResponse(e)}}
+export async function POST(req:Request){try{const u=await requireUser(req);requireAdmin(u);const parsed=z.object({provider:z.enum(['anthropic','openai']),apiKey:z.string().trim().min(15).max(1000)}).safeParse(await readBody(req,4000));if(!parsed.success)throw new AppError(400,'Enter a valid API key.');const {provider,apiKey}=parsed.data;let models:string[]=[];
+const url=provider==='anthropic'?(process.env.ANTHROPIC_BASE_URL||'https://api.anthropic.com/v1').replace(/\/$/,'')+'/models':provider==='openai'?(process.env.OPENAI_BASE_URL||'https://api.openai.com/v1').replace(/\/$/,'')+'/models':'https://backend.composio.dev/api/v3/toolkits?limit=1';
+const headers:Record<string,string>=provider==='anthropic'?{'x-api-key':apiKey,'anthropic-version':'2023-06-01'}:provider==='openai'?{Authorization:'Bearer '+apiKey}:{'x-api-key':apiKey};const r=await fetch(url,{headers,signal:AbortSignal.timeout(20000)});if(!r.ok)throw new AppError(400,'The provider did not accept this key. Check the key and its API permissions.');
+{const data=await r.json() as {data:{id:string}[]};models=(data.data||[]).map(m=>m.id).filter(m=>provider==='anthropic'?m.startsWith('claude-'):/^(gpt-|o[134])/.test(m)&&!/(audio|image|realtime|transcri|tts|search|codex)/.test(m)).sort();}
+const updatedAt=new Date();const ciphertext=await seal(apiKey,u.organizationId,provider);await getDb().insert(credentials).values({organizationId:u.organizationId,provider,ciphertext,lastFour:apiKey.slice(-4),models,updatedAt}).onConflictDoUpdate({target:[credentials.organizationId,credentials.provider],set:{ciphertext,lastFour:apiKey.slice(-4),models,updatedAt}});return Response.json(await connectionSettings(u.organizationId));}catch(e){return errorResponse(e)}}
+export async function DELETE(req:Request){try{const u=await requireUser(req);requireAdmin(u);const parsed=z.object({provider:z.enum(['anthropic','openai'])}).safeParse(await readBody(req,1000));if(!parsed.success)throw new AppError(400,'Choose a provider.');await getDb().delete(credentials).where(and(eq(credentials.organizationId,u.organizationId),eq(credentials.provider,parsed.data.provider)));return Response.json(await connectionSettings(u.organizationId));}catch(e){return errorResponse(e)}}

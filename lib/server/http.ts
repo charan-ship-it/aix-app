@@ -1,0 +1,12 @@
+import { headers } from 'next/headers';
+import { getAuth } from '@/lib/auth';
+import { getDb } from '@/db';
+import { member,organization } from '@/db/schema';
+import { and,eq } from 'drizzle-orm';
+export class AppError extends Error{constructor(public status:number,message:string){super(message)}}
+export type WorkspaceUser={userId:string;displayName:string;email:string;organizationId:string;organizationName:string;role:string};
+export async function requireSession(req?:Request){if(req&&req.method!=='GET'){const origin=req.headers.get('origin');const expected=new URL(process.env.BETTER_AUTH_URL||req.url).origin;if(origin&&origin!==expected)throw new AppError(403,'This request came from a different website.')}const session=await getAuth().api.getSession({headers:await headers()});if(!session)throw new AppError(401,'Sign in to use your workspace.');return session}
+export async function requireUser(req?:Request):Promise<WorkspaceUser>{const s=await requireSession(req);const organizationId=s.session.activeOrganizationId;if(!organizationId)throw new AppError(409,'Create or select an organization first.');const rows=await getDb().select({role:member.role,name:organization.name}).from(member).innerJoin(organization,eq(organization.id,member.organizationId)).where(and(eq(member.organizationId,organizationId),eq(member.userId,s.user.id))).limit(1);if(!rows[0])throw new AppError(403,'You are not a member of this organization.');return {userId:s.user.id,displayName:s.user.name,email:s.user.email,organizationId,organizationName:rows[0].name,role:rows[0].role}}
+export function requireAdmin(u:WorkspaceUser){if(!['owner','admin'].includes(u.role))throw new AppError(403,'An organization owner or admin must make this change.')}
+export async function readBody(req:Request,max=200000){if(Number(req.headers.get('content-length'))>max)throw new AppError(413,'This request is too large.');const text=await req.text();if(text.length>max)throw new AppError(413,'This request is too large.');try{return JSON.parse(text)}catch{throw new AppError(400,'Invalid request.')}}
+export function errorResponse(e:unknown){if(e instanceof AppError)return Response.json({error:e.message},{status:e.status,headers:{'Cache-Control':'no-store'}});return Response.json({error:'The request could not be completed. Check your connection settings and try again.'},{status:503,headers:{'Cache-Control':'no-store'}})}

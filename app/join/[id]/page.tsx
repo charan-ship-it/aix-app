@@ -1,0 +1,4 @@
+'use client';
+import {use,useState} from 'react';
+import {authClient} from '@/lib/auth-client';
+export default function Join({params}:{params:Promise<{id:string}>}){const {id}=use(params);const [message,setMessage]=useState('');const {data:session}=authClient.useSession();return <main className="auth-page"><section className="auth-card"><h1>Join your team</h1><p>Sign in using the email address this invitation was sent to.</p>{session?<button className="primary full" onClick={async()=>{const r=await authClient.organization.acceptInvitation({invitationId:id});if(r.error)setMessage(r.error.message||'Could not accept invitation.');else location.href='/onboarding'}}>Accept invitation</button>:<a className="primary full" href="/sign-in">Sign in or create account</a>}{message&&<p className="form-error">{message}</p>}<small>After signing in, reopen this invitation link.</small></section></main>}

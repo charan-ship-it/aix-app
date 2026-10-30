@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.env
+.env.*
+.dev.vars*
+.wrangler
+.sites-runtime
+outputs
+.data
+archive
+.DS_Store
+*.tsbuildinfo

@@ -1,0 +1,14 @@
+import {test,after} from 'node:test';
+import assert from 'node:assert/strict';
+import {ToolLoopAgent,stepCountIs,tool,type ModelMessage} from 'ai';
+import {MockLanguageModelV3} from 'ai/test';
+import {z} from 'zod';
+import {splitText} from '../lib/server/rag';
+import {seal,unseal} from '../lib/server/secrets';
+import {rateLimit,withLock,getRedis} from '../lib/server/redis';
+try{process.loadEnvFile()}catch{}
+test('document chunks overlap without dropping the tail',()=>{const text='abcdefghij'.repeat(100);const parts=splitText(text,100,20);assert.equal(parts[0],text.slice(0,100));assert.equal(parts[1],text.slice(80,180));assert.ok(parts.at(-1)?.endsWith(text.slice(-20)));assert.throws(()=>splitText(text,10,10))});
+test('encrypted keys are bound to organization and provider',async()=>{const encrypted=await seal('a-test-key-not-a-real-secret','org-a','anthropic');assert.ok(!encrypted.includes('a-test-key'));assert.equal(await unseal(encrypted,'org-a','anthropic'),'a-test-key-not-a-real-secret');await assert.rejects(unseal(encrypted,'org-b','anthropic'));await assert.rejects(unseal(encrypted,'org-a','openai'))});
+test('Redis limits and locks coordinate independent callers',async()=>{const id=crypto.randomUUID();assert.equal(await rateLimit(id,2),true);assert.equal(await rateLimit(id,2),true);assert.equal(await rateLimit(id,2),false);let release!:()=>void;const wait=new Promise<void>(r=>release=r);const first=withLock(id,()=>wait);await new Promise(r=>setTimeout(r,50));await assert.rejects(withLock(id,async()=>true));release();await first;assert.equal(await withLock(id,async()=>true),true)});
+for(const approved of [true,false])test(`tool approval ${approved?'executes exact input after approval':'does not execute denied calls'}`,async()=>{let calls=0;const model=new MockLanguageModelV3({doGenerate:async()=>({content:[{type:'tool-call',toolCallId:'call-one',toolName:'external_action',input:JSON.stringify({value:'exact argument'})}],finishReason:{unified:'tool-calls',raw:'tool_use'},usage:{inputTokens:{total:10,noCache:10,cacheRead:0,cacheWrite:0},outputTokens:{total:3,text:3,reasoning:0}},warnings:[]})});const tools={external_action:tool({description:'Test external action',inputSchema:z.object({value:z.string()}),needsApproval:true,execute:async({value})=>{calls++;assert.equal(value,'exact argument');return {ok:true}}})};const agent=new ToolLoopAgent({model,tools,stopWhen:stepCountIs(1)});const first=await agent.generate({prompt:'Run the action'});const approval=first.content.find(p=>p.type==='tool-approval-request');assert.ok(approval&&approval.type==='tool-approval-request');assert.equal(calls,0);const messages:ModelMessage[]=[{role:'user',content:'Run the action'},...first.response.messages,{role:'tool',content:[{type:'tool-approval-response',approvalId:approval.approvalId,approved}]}];await agent.generate({messages});assert.equal(calls,approved?1:0)});
+after(async()=>{await getRedis().quit()});

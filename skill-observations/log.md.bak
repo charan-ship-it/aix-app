@@ -1,0 +1,17 @@
+# Skill observations
+
+No reusable workflow observations recorded for this initial build.
+
+### Observation 1: Match the product family before designing from the marketing site
+
+**Status:** OPEN
+**Applies to:** frontend-design
+**Signal:** The user asked for the visual language of existing sibling products after the first UI used the public marketing palette.
+**Suggestion:** When a user requests an existing company’s product vibe, inspect available sibling app source, fonts, and design tokens before selecting a visual direction. A company’s marketing site can use a different system from its working applications. Confirm ambiguous named references using local project discovery.
+
+### Observation 2: Port the whole sibling product design system
+
+**Status:** OPEN
+**Applies to:** frontend-design
+**Signal:** The user clarified that Mike is the canonical source for palette, icons, spacing, width, and height after a mixed-reference redesign.
+**Suggestion:** Read the sibling product’s design-system documentation and component implementations, then reuse token values, SVG viewBoxes, typography roles, radius, and density scales together. Verify rendered dimensions and preserve fixed sidebar widths across density settings.

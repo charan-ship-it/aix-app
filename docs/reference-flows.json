@@ -1,0 +1,12 @@
+{
+  "reference": "Dust signed-in workspace 80QHS7dNji",
+  "observedAt": "2026-10-27",
+  "evidence": [
+    {"id":"D01","url":"https://app.dust.tt/w/80QHS7dNji/conversation/new","observed":"Work/Spaces/Admin modes; persistent sidebar; composer, selected agent, work suggestions, discovery entry. Initial screen does not require building an agent or creating a Pod.","type":"live browser"},
+    {"id":"D02","url":"https://app.dust.tt/w/80QHS7dNji/builder/agents","observed":"Agent library has search, workspace/built-in/archived filters, create entry, and agent info details.","type":"live browser"},
+    {"id":"D03","url":"https://app.dust.tt/w/80QHS7dNji/builder/agents/new","observed":"Agent configuration is instructions, example prompts, data access, capabilities, triggers, identity and access, with a distinct preview area. Agents are behavior definitions, not project containers.","type":"live browser"},
+    {"id":"D04","url":"https://app.dust.tt/w/80QHS7dNji/pods/vlt_ARsg1D6FFHw60C","observed":"Pod owns conversations, files, tasks, settings. Starting a task chooses an agent and additional instructions. Task links to a conversation; its header links back to Pod. Pod history includes the conversation.","type":"live test executed in prior turn"}
+  ],
+  "implementationDecisions": ["One organization shell across all destinations","Agent detail/configuration separate from Pod project context","Canonical /conversation/:id retains Pod breadcrumbs","Progressive creation choices instead of exposing all fields at entry","Preserve AIX/Mike palette and typography","Show true model connection state and real empty states"],
+  "unknowns": ["Dust server implementation is not available", "No claim of source-level or full feature parity", "REA MCP capture engine not connected; supplied skill reference guides absent"]
+}

@@ -1,0 +1,64 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "11a6f6d9-36a0-46d7-a1ea-6ae4be765c29",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "tables": {
+    "workspace_records": {
+      "name": "workspace_records",
+      "columns": {
+        "owner": {
+          "name": "owner",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "data": {
+          "name": "data",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "workspace_records_owner_id_pk": {
+          "columns": [
+            "owner",
+            "id"
+          ],
+          "name": "workspace_records_owner_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}

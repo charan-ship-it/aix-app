@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "run_one_active_chat" ON "agent_run" USING btree ("organization_id","chat_id") WHERE "agent_run"."status" IN ('queued', 'running', 'awaiting_approval');

@@ -1,0 +1,56 @@
+{
+  "name": "aixccelerate-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "db:generate": "drizzle-kit generate",
+    "worker": "tsx worker.ts",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "setup:env": "node scripts/setup-env.mjs",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.135",
+    "@ai-sdk/mcp": "^1.0.99",
+    "@ai-sdk/openai": "^3.0.132",
+    "@aws-sdk/client-s3": "^3.1157.0",
+    "@aws-sdk/s3-request-presigner": "^3.1157.0",
+    "@composio/core": "^0.27.0",
+    "@composio/vercel": "^0.13.0",
+    "@mastra/core": "1.80.0",
+    "ai": "^6.0.316",
+    "better-auth": "^1.7.14",
+    "bullmq": "^6.5.0",
+    "drizzle-orm": "0.45.2",
+    "ioredis": "^6.0.0",
+    "lucide-react": "^1.31.0",
+    "next": "^16.4.3",
+    "postgres": "^3.4.9",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "tsx": "^4.23.15",
+    "undici": "^7.30.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@tailwindcss/postcss": "4.2.1",
+    "@types/node": "22.19.19",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "drizzle-kit": "0.31.10",
+    "tailwindcss": "4.2.1",
+    "typescript": "5.9.3"
+  },
+  "type": "module"
+}

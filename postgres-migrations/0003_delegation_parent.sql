@@ -1,0 +1,1 @@
+CREATE INDEX "run_org_parent" ON "agent_run" USING btree ("organization_id",("payload"->>'parentRunId')) WHERE "agent_run"."payload"->>'parentRunId' IS NOT NULL;
