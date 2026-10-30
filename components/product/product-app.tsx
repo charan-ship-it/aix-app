@@ -44,6 +44,7 @@ import { QualityWorkspace } from "./quality-workspace";
 import { SkillsLibrary } from "./skills-library";
 import { MyWork } from "./my-work";
 import { WorkInbox } from "./work-inbox";
+import { WorkDetail } from "./work-detail";
 import { DelegatedWork } from "./delegated-work";
 import { ConversationHistory } from "./conversation-history";
 import { ConversationsIndex } from "./conversations-index";
@@ -62,6 +63,7 @@ export type ProductView =
   | "spaces"
   | "connections"
   | "inbox"
+  | "work"
   | "skills"
   | "my-work"
   | "quality"
@@ -415,6 +417,8 @@ export function ProductApp({
           <SkillsLibrary admin={admin} />
         ) : view === "my-work" ? (
           <MyWork />
+        ) : view === "work" && entityId ? (
+          <WorkDetail key={`${user.organizationId}:${user.id}:${entityId}`} runId={entityId} />
         ) : view === "inbox" ? (
           <WorkInbox />
         ) : view === "agents" ? (

@@ -17,15 +17,7 @@ import {
   type WorkInboxData,
   type WorkInboxItem,
 } from "@/lib/work-inbox";
-import { ProductModal } from "./modal";
 import "./work-inbox.css";
-type Review = {
-  id: string;
-  status: string;
-  chat?: { id: string; title: string };
-  pending: { id: string; tool: string; input: unknown }[];
-  error?: string;
-};
 const filters: [WorkFilter, string][] = [
   ["attention", "Needs you"],
   ["working", "Working"],
@@ -38,8 +30,7 @@ export function WorkInbox() {
     [query, setQuery] = useState(""),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
-    [busy, setBusy] = useState(""),
-    [review, setReview] = useState<Review>();
+    [busy, setBusy] = useState("");
   async function refresh(signal?: AbortSignal) {
     try {
       const next = await request<WorkInboxData>(
@@ -65,43 +56,6 @@ export function WorkInbox() {
       clearInterval(timer);
     };
   }, []);
-  async function openReview(item: WorkInboxItem) {
-    setBusy(item.id);
-    setError("");
-    try {
-      const result = await request<Review>(`/api/runs/${item.id}`);
-      if (result.status !== "awaiting_approval")
-        throw Error("This item changed. Refresh to see its current status.");
-      setReview(result);
-    } catch (e) {
-      setError((e as Error).message);
-      void refresh();
-    } finally {
-      setBusy("");
-    }
-  }
-  async function decide(approved: boolean) {
-    if (!review) return;
-    setBusy(review.id);
-    setError("");
-    try {
-      await request(`/api/runs/${review.id}/approve`, {
-        approved,
-        expectedApprovalIds: review.pending.map((p) => p.id),
-      });
-      setReview(undefined);
-      setNotice(
-        approved
-          ? "Actions approved. The run will continue in its conversation."
-          : "Actions denied. The agent will receive your decision.",
-      );
-      await refresh();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy("");
-    }
-  }
   async function markReviewed(item: WorkInboxItem) {
     setBusy(item.id);
     setError("");
@@ -163,7 +117,7 @@ export function WorkInbox() {
             {notice}
           </p>
         )}
-        {error && !review && (
+        {error && (
           <p className="form-error" role="alert">
             {error}
           </p>
@@ -180,18 +134,18 @@ export function WorkInbox() {
                   className={`work-inbox-status work-inbox-status-${item.status}`}
                 >
                   {item.status === "awaiting_approval" ? (
-                    <ShieldCheck size={16} />
+                    <ShieldCheck size={16} aria-hidden="true" />
                   ) : item.status === "completed" ? (
-                    <CheckCheck size={16} />
+                    <CheckCheck size={16} aria-hidden="true" />
                   ) : (
-                    <Inbox size={16} />
+                    <Inbox size={16} aria-hidden="true" />
                   )}
                   <span>{workStatus(item.status)}</span>
                 </div>
                 <div className="work-inbox-content">
                   <Link
                     className="work-inbox-title"
-                    href={`/conversation/${item.chatId}`}
+                    href={`/work/${encodeURIComponent(item.id)}`}
                   >
                     {item.title}
                   </Link>
@@ -201,7 +155,9 @@ export function WorkInbox() {
                       <>
                         {" "}
                         in{" "}
-                        <Link href={`/pods/${item.podId}`}>{item.podName}</Link>
+                        <Link href={`/pods/${encodeURIComponent(item.podId!)}`}>
+                          {item.podName}
+                        </Link>
                       </>
                     ) : (
                       " · Personal conversation"
@@ -223,25 +179,25 @@ export function WorkInbox() {
                   </small>
                 </div>
                 <div className="work-inbox-actions">
-                  {item.status === "awaiting_approval" ? (
-                    <button
-                      className="primary"
-                      disabled={!!busy}
-                      onClick={() => openReview(item)}
-                    >
-                      {busy === item.id ? "Opening…" : "Review actions"}
-                    </button>
-                  ) : (
-                    <Link
-                      className="secondary"
-                      href={`/conversation/${item.chatId}`}
-                    >
-                      {item.status === "failed"
-                        ? "Resolve in conversation"
-                        : "Open conversation"}
-                      <ArrowUpRight size={13} />
-                    </Link>
-                  )}
+                  <Link
+                    className={
+                      item.status === "awaiting_approval"
+                        ? "primary"
+                        : "secondary"
+                    }
+                    href={`/work/${encodeURIComponent(item.id)}`}
+                  >
+                    {item.status === "awaiting_approval"
+                      ? "Review actions"
+                      : "View work"}
+                    <ArrowUpRight size={13} aria-hidden="true" />
+                  </Link>
+                  <Link
+                    className="secondary"
+                    href={`/conversation/${encodeURIComponent(item.chatId)}`}
+                  >
+                    Conversation
+                  </Link>
                   {["failed", "completed", "cancelled"].includes(item.status) &&
                     !item.reviewed && (
                       <button
@@ -291,63 +247,6 @@ export function WorkInbox() {
           </p>
         )}
       </div>
-      {review && (
-        <ProductModal
-          title="Review requested actions"
-          onClose={() => {
-            if (!busy) setReview(undefined);
-          }}
-          wide
-        >
-          <div className="product-modal-body work-review">
-            <p>
-              Review every action and its exact inputs before deciding. Your
-              decision applies to all {review.pending.length} actions shown
-              below.
-            </p>
-            {review.pending.map((p) => (
-              <section key={p.id}>
-                <h3>{p.tool}</h3>
-                <pre>{JSON.stringify(p.input, null, 2)}</pre>
-              </section>
-            ))}
-            {error && (
-              <p className="form-error" role="alert">
-                {error}
-              </p>
-            )}
-            <Link
-              href={`/conversation/${review.chat?.id}`}
-              className="product-starter-link"
-            >
-              Read the full conversation
-            </Link>
-            <div className="product-modal-actions">
-              <button
-                className="secondary"
-                disabled={!!busy}
-                onClick={() => setReview(undefined)}
-              >
-                Back
-              </button>
-              <button
-                className="secondary"
-                disabled={!!busy || !review.pending.length}
-                onClick={() => decide(false)}
-              >
-                Deny these actions
-              </button>
-              <button
-                className="primary"
-                disabled={!!busy || !review.pending.length}
-                onClick={() => decide(true)}
-              >
-                {busy ? "Saving decision…" : "Approve these actions"}
-              </button>
-            </div>
-          </div>
-        </ProductModal>
-      )}
     </>
   );
 }

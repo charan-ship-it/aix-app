@@ -28,6 +28,7 @@ import { delegateTask, delegateTasks, authorizeDelegationParent } from "./delega
 import { agentQueue } from "./queue";
 import { getRedis, withLock } from "./redis";
 import { runErrorMessage } from "./run-errors";
+import { readConversationAccess } from "./conversation-access";
 export type RunPayload = {
   parentRunId?: string;
   transcriptAnalysisCalls?: number;
@@ -982,6 +983,8 @@ export async function cancelRun(u: WorkspaceUser, id: string) {
     );
     const [run] = await db.select().from(runs).where(where).limit(1);
     if (!run) throw new AppError(404, "Run not found.");
+    // Stopping remains possible for archived/deleted agents, but current source access is required.
+    await readConversationAccess(u, run.chatId);
     if (!["queued", "running", "awaiting_approval"].includes(run.status))
       throw new AppError(409, "This run already finished.");
     await getRedis().set("run-cancel:" + id, "1", "EX", 600);

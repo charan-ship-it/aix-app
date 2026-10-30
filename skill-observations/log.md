@@ -94,3 +94,18 @@ No reusable workflow observations recorded for this initial build.
 **Suggested improvement:** Before comparing or reusing features, record local root, remotes, inspected commit, running build provenance, and the reference repository structure. Distinguish source inspection, advertised capabilities, and exercised workflows.
 
 **Principle:** Verify artifact identity before transferring implementation or validation claims between projects.
+
+### Observation 11: Bound approval previews without hiding decisions
+
+**Status:** OPEN
+**Date:** 2026-10-30
+**Session context:** Adding a task detail view over existing execution and approval records.
+**Skill:** frontend-design
+**Type:** open-source
+**Phase/Area:** Action review and verification
+
+**Issue:** A readable evidence preview needs size limits and credential redaction, but truncated action inputs can make an approval misleading. Historical execution also must not accidentally display the latest result from a later conversation turn.
+
+**Suggested improvement:** Associate request/results with immutable run identities, return explicit preview completeness and redaction flags, disable decisions on incomplete previews, and send the displayed approval IDs to a server-side stale-action check. Test multi-run chats and revocation after the preview was opened.
+
+**Principle:** Readability limits must preserve the integrity of the decision, and execution evidence must retain its original identity.

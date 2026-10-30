@@ -2,6 +2,7 @@
 import { RunFeedback } from "@/components/product/run-feedback";
 import { PodsNav } from "@/components/employees/pods-nav";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -1718,6 +1719,11 @@ export default function Workspace({
                                 </span>
                               )}
                             </div>
+                            {productMode && m.role === "assistant" && m.runId && (
+                              <Link className="work-detail-link" href={`/work/${encodeURIComponent(m.runId)}`}>
+                                View work details <ArrowUpRight size={12} aria-hidden="true" />
+                              </Link>
+                            )}
                             {m.trace && m.trace.length > 0 && (
                               <details className="tool-trace">
                                 <summary>

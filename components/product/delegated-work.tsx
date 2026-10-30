@@ -54,7 +54,7 @@ export function DelegatedWork({
         <GitBranch size={14} /> Specialist work
       </span>
       {items.map((item) => (
-        <Link key={item.id} href={`/conversation/${item.chatId}`}>
+        <Link key={item.id} href={`/work/${encodeURIComponent(item.id)}`}>
           {item.agentName}
           <small>{workStatus(item.status)}</small>
         </Link>
