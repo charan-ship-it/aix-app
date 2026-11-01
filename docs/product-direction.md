@@ -2,6 +2,12 @@
 
 AIX belongs in the **configurable agent platform** layer. Its product promise should work for an individual, a group, or an organization: define repeatable work, give it scoped context and tools, and receive a usable result with clear decisions and recovery. Organization tenancy is infrastructure; a customer should not need to describe themselves as a business to begin.
 
+## Meeting feedback captured 2 November 2026
+
+The [user-supplied meeting feedback](product-feedback-2026-11-02.md) sharpens the experience around an agent's own home: role, objectives, instructions, guardrails, knowledge, skills, tools and multiple independent conversation threads. Daily use should be clear; advanced management belongs in configuration. Team/project spaces and agent homes need distinct meanings. Named sharing, agent groups, ongoing responsibilities and isolated computer execution remain explicit implementation work rather than implied capabilities.
+
+Harness choice is a requested product direction, separate from model choice. Introduce supported adapters incrementally while preserving AIX authorization and durable records; do not advertise every harness/model combination. Existing AI SDK execution and bounded Mastra analysis are different layers. CopilotKit/AG-UI now provides a locally verified, bounded work-detail observer ([ADR 0002](adr/0002-ag-ui-interaction.md)); it is an interaction layer, not another execution harness. Bring-your-own subscription support requires provider-specific authentication, deployment and billing validation before becoming a product promise. These requests extend the current platform without authorizing a wholesale migration.
+
 ## Customer-facing boundary — clarified 30 October 2026
 
 This is a SaaS product built by AIXccelerate for external customers, not an AIX internal operations tool. Each customer brings their own workspace, people, goals, accounts, knowledge and permissions. The founder's Gmail, Calendar and Scribe sources are development/pilot accounts, not universal prerequisites or the definition of the audience. Email/calendar is a recommended first-job path; transcripts, coding tools, CRM and other sources remain optional alternatives. Personal work and explicitly shared team work must remain distinct.

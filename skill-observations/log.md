@@ -109,3 +109,18 @@ No reusable workflow observations recorded for this initial build.
 **Suggested improvement:** Associate request/results with immutable run identities, return explicit preview completeness and redaction flags, disable decisions on incomplete previews, and send the displayed approval IDs to a server-side stale-action check. Test multi-run chats and revocation after the preview was opened.
 
 **Principle:** Readability limits must preserve the integrity of the decision, and execution evidence must retain its original identity.
+
+### Observation 12: Verify framework licensing and production entry points
+
+**Status:** OPEN
+**Date:** 2026-11-02
+**Session context:** Integrating a protocol client and self-hosted framework runtime.
+**Skill:** competitive-architecture-teardown
+**Type:** open-source
+**Phase/Area:** Dependency integration and acceptance
+
+**Issue:** A documented provider option carried an Enterprise production licensing warning in installed source. Separately, an SDK loaded natively but a development TypeScript loader redirected a dependency to an unusable published source stub. Schema-only checks would not prove the production path.
+
+**Suggested improvement:** Pin compatible versions; verify installed license and public runtime interfaces; choose the supported production route without bypass flags. Test real installed clients against the authenticated production endpoint using a compatible native loader, and distinguish framework transport proof from live model-quality evidence.
+
+**Principle:** A dependency choice is verified only when its supported licensing, production entry point and actual transport behavior fit the product.

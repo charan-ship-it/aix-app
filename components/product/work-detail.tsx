@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -20,6 +21,8 @@ import {
 import type { WorkDetail as WorkDetailData } from "@/lib/work-detail";
 import { workStatus } from "@/lib/work-inbox";
 import "./work-detail.css";
+
+const RunInteraction = dynamic(() => import("./run-interaction"), { ssr: false });
 
 const liveStatuses = new Set(["queued", "running", "awaiting_approval"]);
 const terminalStatuses = new Set(["completed", "failed", "cancelled"]);
@@ -65,6 +68,16 @@ export function WorkDetail({ runId }: { runId: string }) {
   const actionController = useRef<AbortController | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const lastStatus = useRef("");
+  const applyInteractionSnapshot = useCallback((next: WorkDetailData) => {
+    if (next.id !== runId) return;
+    setData(next);
+    lastStatus.current = next.status;
+  }, [runId]);
+  const clearInteractionSource = useCallback(() => {
+    setData(undefined);
+    lastStatus.current = "";
+    setError("This work is no longer available. Refresh to check your current access.");
+  }, []);
 
   const load = useCallback(async () => {
     clearTimeout(timer.current);
@@ -306,6 +319,7 @@ export function WorkDetail({ runId }: { runId: string }) {
                     <span className="work-detail-step">2</span>
                     <h3 id="work-progress-title">Progress and decisions</h3>
                   </div>
+                  <RunInteraction work={data} onSnapshot={applyInteractionSnapshot} onUnavailable={clearInteractionSource} />
                   {data.error && (
                     <div className="work-detail-blocker">
                       <strong>

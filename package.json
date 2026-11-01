@@ -14,10 +14,14 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
+    "test:ag-ui:http": "node tests/ag-ui.integration.ts",
     "setup:env": "node scripts/setup-env.mjs",
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@ag-ui/client": "1.0.2",
+    "@ag-ui/core": "1.0.2",
+    "@ag-ui/encoder": "1.0.2",
     "@ai-sdk/anthropic": "^3.0.135",
     "@ai-sdk/mcp": "^1.0.99",
     "@ai-sdk/openai": "^3.0.132",
@@ -25,6 +29,8 @@
     "@aws-sdk/s3-request-presigner": "^3.1157.0",
     "@composio/core": "^0.27.0",
     "@composio/vercel": "^0.13.0",
+    "@copilotkit/react-core": "1.83.0",
+    "@copilotkit/runtime": "1.83.0",
     "@mastra/core": "1.80.0",
     "ai": "^6.0.316",
     "better-auth": "^1.7.14",
