@@ -13,6 +13,10 @@ import {
   errorResponse,
 } from "@/lib/server/http";
 import { rateLimit } from "@/lib/server/redis";
+import { sanitizeGmailFetchData } from "@/lib/server/email-safety";
+import { protectedMailTool, supportedMailTool, UNSUPPORTED_MAIL } from "@/lib/email-tool-policy";
+import { validateCalendarArguments } from "@/lib/calendar-boundaries";
+import { getPersonalTimezone } from "@/lib/server/personal-timezone";
 export async function GET() {
   try {
     const u = await requireUser();
@@ -68,6 +72,12 @@ export async function POST(req: Request) {
         "Wait a moment before running another integration test.",
       );
     const { id, toolkit, tool, arguments: args } = b.data;
+    if (tool === "GOOGLECALENDAR_EVENTS_LIST") {
+      const error = validateCalendarArguments(args, await getPersonalTimezone(u));
+      if (error) throw new AppError(400, error);
+    }
+    if (protectedMailTool(tool) && !supportedMailTool(tool))
+      throw new AppError(403, UNSUPPORTED_MAIL);
     const c = await composioFor(u.organizationId);
     const definitions = await c.tools.getRawComposioTools(
       { tools: [tool] },
@@ -130,7 +140,13 @@ export async function POST(req: Request) {
         );
       const response = await session.execute(tool, args);
       result.status = response.resultType === "completed" ? "passed" : "failed";
-      result.output = response.data;
+      if (tool === "GMAIL_FETCH_EMAILS") {
+        if (result.status === "passed") {
+          const safe = sanitizeGmailFetchData(response.data);
+          result.output = safe.data;
+          if (!safe.ok) result.status = "failed";
+        } else result.output = { error: "Email read failed; detailed response omitted." };
+      } else result.output = response.data;
       if (result.status === "failed")
         result.error =
           "The app did not complete this tool call. Review the response and app permissions.";

@@ -9,6 +9,7 @@ import {
 import { toolkitCatalog } from "@/lib/agent-config";
 import { request } from "@/lib/product-client";
 import { ProductModal } from "@/components/product/modal";
+import { protectedMailTool, supportedMailTool } from "@/lib/email-tool-policy";
 export function IntegrationLab({
   toolkit,
   connected,
@@ -90,6 +91,7 @@ export function IntegrationLab({
             no model is required.
           </p>
         </div>
+        {(toolkit === "gmail" || toolkit === "outlook") && <p className="settings-note">For email privacy, only Gmail Fetch emails is currently available. Authentication-related content may be omitted. Previously saved results are unchanged.</p>}
         {!connected && (
           <p className="form-error">
             Connect your {name} account before running a check. You can browse
@@ -133,8 +135,8 @@ export function IntegrationLab({
             >
               <option value="">Choose a tool</option>
               {tools.map((t) => (
-                <option key={t.slug} value={t.slug}>
-                  {t.name}
+                <option key={t.slug} value={t.slug} disabled={protectedMailTool(t.slug) && !supportedMailTool(t.slug)}>
+                  {t.name}{protectedMailTool(t.slug) && !supportedMailTool(t.slug) ? " (temporarily unavailable)" : ""}
                 </option>
               ))}
             </select>

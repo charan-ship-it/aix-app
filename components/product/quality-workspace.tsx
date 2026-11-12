@@ -111,7 +111,9 @@ function VariantResult({ name, result }: { name: string; result?: Variant }) {
               >
                 {assertion.passed ? <Check size={13} /> : <X size={13} />}
                 <span>
-                  {assertion.kind === "contains"
+                  {assertion.kind === "firstLineEquals"
+                    ? "First line equals"
+                    : assertion.kind === "contains"
                     ? "Contains"
                     : assertion.kind === "notContains"
                       ? "Does not contain"
@@ -756,6 +758,7 @@ export function QualityWorkspace({ admin }: { admin: boolean }) {
                     (item) =>
                       item.checks.contains.length ||
                       item.checks.notContains.length ||
+                      item.checks.firstLineEquals ||
                       item.checks.maxChars !== undefined,
                   )
                 )
@@ -922,6 +925,10 @@ export function QualityWorkspace({ admin }: { admin: boolean }) {
                       />
                     </label>
                   </div>
+                  <label className="quality-field">
+                    First line must equal <small>Optional</small>
+                    <input maxLength={300} value={item.checks.firstLineEquals ?? ""} onChange={(event) => updateCase(index, {...item, checks:{...item.checks, firstLineEquals:event.target.value || undefined}})} placeholder="e.g. CONFIRMED" />
+                  </label>
                   <label className="quality-field quality-max-chars">
                     Maximum characters <small>Optional</small>
                     <input

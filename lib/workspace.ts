@@ -30,7 +30,7 @@ export type Message = {
   demo?: boolean;
   runId?: string;
   agentName?: string;
-  trace?: { tool: string; status: string; input?: unknown; output?: unknown }[];
+  trace?: { tool: string; status: string; toolCallId?: string; input?: unknown; output?: unknown }[];
   pending?: { id: string; tool: string; input: unknown }[];
   usage?: { input: number; output: number };
   error?: boolean;

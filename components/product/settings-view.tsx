@@ -33,23 +33,22 @@ export function SettingsView({
       "Appearance",
       "Choose how your workspace looks on this device.",
     ],
+    timezone: ["Time zone", "Set the time zone your agents use for dates and calendar work in this workspace."],
     activity: ["Runs & schedules", "Review your runs and recurring work."],
     system: [
       "Infrastructure",
       "Health and configuration of your workspace services.",
     ],
   };
-  const info = titles[section] || titles.models;
+  const currentSection = titles[section] ? section : "models";
+  const info = titles[currentSection];
   return (
     <>
-      <header className="product-page-head">
-        <div>
-          <h1>{info[0]}</h1>
-          <p>{info[1]}</p>
-        </div>
-      </header>
+      <header className="product-page-head"><div><h1>{info[0]}</h1><p>{info[1]}</p></div></header>
       <div className="product-page-scroll settings-page">
-        {section === "team" ? (
+        {section === "timezone" ? (
+          <TimezoneSettings />
+        ) : section === "team" ? (
           <TeamSettings />
         ) : section === "system" ? (
           <InfrastructureStatus />
@@ -79,6 +78,18 @@ export function SettingsView({
       </div>
     </>
   );
+}
+function TimezoneSettings() {
+  const [timezone, setTimezone] = useState("");
+  const [message, setMessage] = useState("Loading your setting…");
+  const [busy, setBusy] = useState(true);
+  useEffect(() => { let active = true; fetch("/api/personal-timezone").then(async r => { if (!r.ok) throw new Error(); return r.json(); }).then(data => { if (active) { setTimezone(data.timezone || ""); setMessage(data.timezone ? "" : "No time zone saved yet. Your agent will ask when it needs one."); } }).catch(() => { if (active) setMessage("Could not load your time zone. Try refreshing."); }).finally(() => { if (active) setBusy(false); }); return () => { active = false; }; }, []);
+  const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  async function save() {
+    setBusy(true); setMessage("");
+    try { const r = await fetch("/api/personal-timezone", {method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({timezone})}); const data = await r.json(); if (!r.ok) throw new Error(data.error || "Unable to save."); setTimezone(data.timezone); setMessage("Time zone saved for you in this workspace."); } catch (e) { setMessage(e instanceof Error ? e.message : "Unable to save."); } finally { setBusy(false); }
+  }
+  return <section className="product-form-section timezone-settings"><h2>Your time zone</h2><p>Agents use this setting to interpret dates and calendar requests. It does not change other members’ settings.</p><div className="timezone-field"><label htmlFor="personal-timezone">IANA time zone</label><input id="personal-timezone" value={timezone} onChange={e => setTimezone(e.target.value)} placeholder="e.g. Asia/Kolkata" disabled={busy} /></div><div className="timezone-actions"><button className="secondary" type="button" onClick={() => setTimezone(detected)} disabled={busy || !detected}>Use device time zone{detected ? ` (${detected})` : ""}</button><button className="primary" type="button" onClick={save} disabled={busy || !timezone.trim()}>{busy && !message ? "Saving…" : "Save"}</button></div>{message && <p className="timezone-message" role="status">{message}</p>}</section>;
 }
 function Appearance() {
   const [theme, setTheme] = useState("dark");

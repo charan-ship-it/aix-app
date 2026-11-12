@@ -1,37 +1,30 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
-  ArrowLeft,
   Box,
   ChevronDown,
   ChevronRight,
-  Layers3,
   MessageSquare,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
   Search,
   Settings2,
-  Sun,
-  Moon,
   Users,
-  Plug,
-  Activity,
-  Server,
   LogOut,
   Bot,
-  BookOpen,
   Menu,
-  House,
   Inbox,
-  ListChecks,
+  Sun,
+  Moon,
 } from "lucide-react";
 import type { Chat } from "@/lib/workspace";
 import type { Pod } from "@/lib/pods";
 import { OrganizationPicker } from "@/components/platform/organizations";
 import { authClient } from "@/lib/auth-client";
+import { SettingsNavigation } from "./settings-navigation";
 export type ProductUser = {
   id: string;
   name: string;
@@ -56,18 +49,17 @@ export function ProductShell({
 }) {
   const path = usePathname(),
     query = useSearchParams();
-  const mode = path.startsWith("/settings")
-    ? "admin"
-    : path === "/spaces" || path === "/connections"
-      ? "spaces"
-      : "work";
-  const section = query.get("section") || "models";
+  const settingsMode = ["/settings", "/connections", "/spaces", "/my-work", "/skills", "/quality"].includes(path) || path === "/" && query.get("guide") === "1";
+  const admin = ["owner", "admin"].includes(user.role);
   const [mobile, setMobile] = useState(false),
     [collapsed, setCollapsed] = useState(false),
     [theme, setTheme] = useState("dark"),
     [themeReady, setThemeReady] = useState(false),
-    [podsOpen, setPodsOpen] = useState(true),
-    [chatsOpen, setChatsOpen] = useState(true);
+    [podsOpen, setPodsOpen] = useState(!!activePodId),
+    [chatsOpen, setChatsOpen] = useState(true),
+    [profileOpen, setProfileOpen] = useState(false);
+  const profileMenu = useRef<HTMLDetailsElement>(null), profileSummary = useRef<HTMLElement>(null);
+  const mobileToggle = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     setTheme(localStorage.getItem("aix-theme") === "light" ? "light" : "dark");
     setThemeReady(true);
@@ -86,29 +78,32 @@ export function ProductShell({
     document.documentElement.dataset.theme = theme;
     localStorage.setItem("aix-theme", theme);
   }, [theme, themeReady]);
-  useEffect(() => setMobile(false), [path, query]);
+  useEffect(() => { setMobile(false); setProfileOpen(false); }, [path, query]);
+  useEffect(() => {
+    if (!profileOpen) return;
+    const outside = (event: PointerEvent) => { if (event.target instanceof Node && !profileMenu.current?.contains(event.target)) setProfileOpen(false); };
+    document.addEventListener("pointerdown", outside);
+    return () => document.removeEventListener("pointerdown", outside);
+  }, [profileOpen]);
   useEffect(() => {
     function key(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         onSearch();
       }
-      if (e.key === "Escape") setMobile(false);
+      if (e.key === "Escape") {
+        if (mobile) { setMobile(false); setProfileOpen(false); mobileToggle.current?.focus(); }
+        else if (profileOpen) { setProfileOpen(false); profileSummary.current?.focus(); }
+      }
     }
     document.addEventListener("keydown", key);
     return () => document.removeEventListener("keydown", key);
-  }, [onSearch]);
+  }, [onSearch, profileOpen, mobile]);
   const recent = chats
     .filter((c) => !c.podId)
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-    .slice(0, 16);
-  const settings = [
-    ["models", "Model connections", Plug],
-    ["team", "Members & invitations", Users],
-    ["appearance", "Appearance", Sun],
-    ["activity", "Runs & schedules", Activity],
-    ["system", "Infrastructure", Server],
-  ] as const;
+    .slice(0, 8);
+  useEffect(() => { if (activePodId) setPodsOpen(true); }, [activePodId]);
   return (
     <div
       className={
@@ -124,11 +119,11 @@ export function ProductShell({
       {mobile && (
         <button
           className="product-rail-scrim"
-          onClick={() => setMobile(false)}
+          onClick={() => { setMobile(false); mobileToggle.current?.focus(); }}
           aria-label="Close navigation"
         />
       )}
-      <aside className="product-rail">
+      <aside className="product-rail" id="aix-sidebar" aria-label="Workspace navigation">
         <div className="product-brand-row">
           <Link
             className="product-brand"
@@ -157,6 +152,9 @@ export function ProductShell({
               })
             }
             aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
+            title={collapsed ? "Expand navigation" : "Collapse navigation"}
+            aria-expanded={!collapsed}
+            aria-controls="aix-sidebar"
           >
             {collapsed ? (
               <PanelLeftOpen size={17} />
@@ -165,230 +163,33 @@ export function ProductShell({
             )}
           </button>
         </div>
-        <div className="product-modes" aria-label="Workspace areas">
-          <Link
-            className={mode === "work" ? "active" : ""}
-            href="/"
-            title="Work"
-          >
-            <Layers3 size={16} />
-            <span>Work</span>
-          </Link>
-          <Link
-            className={mode === "spaces" ? "active" : ""}
-            href="/spaces"
-            title="Spaces"
-          >
-            <BookOpen size={16} />
-            <span>Spaces</span>
-          </Link>
-          <Link
-            className={mode === "admin" ? "active" : ""}
-            href="/settings"
-            title="Admin"
-          >
-            <Settings2 size={16} />
-            <span>Admin</span>
-          </Link>
-        </div>
         <div className="product-rail-scroll">
-          {mode === "work" ? (
-            <>
-              <nav className="product-nav">
-                <Link href="/" className={path === "/" ? "selected" : ""}><House size={17} /><span>Home</span></Link>
-                <Link
-                  className={
-                    path === "/conversation/new"
-                      ? "selected"
-                      : ""
-                  }
-                  href="/conversation/new"
-                >
-                  <MessageSquare size={17} />
-                  <span>New conversation</span>
-                  <kbd>C</kbd>
-                </Link>
-                <button onClick={onSearch}>
-                  <Search size={17} />
-                  <span>Search workspace</span>
-                  <kbd>⌘ K</kbd>
-                </button>
-                <Link href="/conversations" className={path === "/conversations" ? "selected" : ""}>
-                  <MessageSquare size={17} /><span>All conversations</span>
-                </Link>
-                <Link href="/my-work" className={path === "/my-work" ? "selected" : ""}>
-                  <ListChecks size={17} /><span>My work</span>
-                </Link>
-                <Link href="/quality" className={path === "/quality" ? "selected" : ""}>
-                  <Activity size={17} /><span>Learning & evals</span>
-                </Link>
-                <Link href="/skills" className={path === "/skills" ? "selected" : ""}>
-                  <BookOpen size={17} /><span>Skills</span>
-                </Link>
-                <Link
-                  href="/inbox"
-                  className={path === "/inbox" ? "selected" : ""}
-                >
-                  <Inbox size={17} />
-                  <span>Work inbox</span>
-                </Link>
-                <div className="product-nav-with-action">
-                  <Link
-                    className={path.startsWith("/agents") ? "selected" : ""}
-                    href="/agents"
-                  >
-                    <Bot size={17} />
-                    <span>Agents</span>
-                  </Link>
-                  <Link
-                    href="/agents/new"
-                    aria-label="Create agent"
-                    className="product-nav-add"
-                  >
-                    <Plus size={15} />
-                  </Link>
-                </div>
-              </nav>
-              <div className="product-nav-section">
-                <button
-                  onClick={() => setPodsOpen(!podsOpen)}
-                  aria-expanded={podsOpen}
-                >
-                  {podsOpen ? (
-                    <ChevronDown size={13} />
-                  ) : (
-                    <ChevronRight size={13} />
-                  )}
-                  <span>Pods</span>
-                </button>
-                <Link href="/pods?create=1" aria-label="Create Pod">
-                  <Plus size={14} />
-                </Link>
-                <Link href="/pods" aria-label="Browse Pods">
-                  <Box size={14} />
-                </Link>
-              </div>
-              {podsOpen && (
-                <div className="product-nav-list">
-                  {pods
-                    .filter((p) => !p.archived)
-                    .map((p) => (
-                      <Link
-                        className={activePodId === p.id ? "selected" : ""}
-                        key={p.id}
-                        href={"/pods/" + p.id}
-                      >
-                        <Box size={16} />
-                        <span>{p.name}</span>
-                      </Link>
-                    ))}
-                  {!pods.filter((p) => !p.archived).length && (
-                    <Link className="product-nav-empty" href="/pods?create=1">
-                      Create a home for your project
-                    </Link>
-                  )}
-                </div>
-              )}
-              <div className="product-nav-section">
-                <button
-                  onClick={() => setChatsOpen(!chatsOpen)}
-                  aria-expanded={chatsOpen}
-                >
-                  {chatsOpen ? (
-                    <ChevronDown size={13} />
-                  ) : (
-                    <ChevronRight size={13} />
-                  )}
-                  <span>Conversations</span>
-                </button>
-              </div>
-              {chatsOpen && (
-                <div className="product-nav-list conversations">
-                  {recent.length > 0 && <small>Recent</small>}
-                  {recent.map((c) => (
-                    <Link
-                      key={c.id}
-                      className={
-                        path === "/conversation/" + c.id ? "selected" : ""
-                      }
-                      href={"/conversation/" + c.id}
-                    >
-                      <MessageSquare size={15} />
-                      <span>{c.title}</span>
-                    </Link>
-                  ))}
-                  {!recent.length && (
-                    <p className="product-nav-hint">
-                      Your conversations will appear here.
-                    </p>
-                  )}
-                </div>
-              )}
-            </>
-          ) : mode === "spaces" ? (
-            <>
-              <p className="product-area-description">
-                Bring your company context and apps into your agents’ work.
-              </p>
-              <nav className="product-nav">
-                <Link
-                  className={path === "/spaces" ? "selected" : ""}
-                  href="/spaces"
-                >
-                  <BookOpen size={17} />
-                  <span>Company knowledge</span>
-                </Link>
-                <Link
-                  className={path === "/connections" ? "selected" : ""}
-                  href="/connections"
-                >
-                  <Plug size={17} />
-                  <span>App connections</span>
-                </Link>
-              </nav>
-              <Link className="product-back-link" href="/">
-                <ArrowLeft size={15} />
-                Back to Work
-              </Link>
-            </>
-          ) : (
-            <>
-              <p className="product-area-description">
-                Manage {user.organizationName}.
-              </p>
-              <nav className="product-nav">
-                {settings.map(([id, label, Icon]) => (
-                  <Link
-                    className={section === id ? "selected" : ""}
-                    href={"/settings?section=" + id}
-                    key={id}
-                  >
-                    <Icon size={17} />
-                    <span>{label}</span>
-                  </Link>
-                ))}
-              </nav>
-              <Link className="product-back-link" href="/">
-                <ArrowLeft size={15} />
-                Back to Work
-              </Link>
-            </>
-          )}
+          {settingsMode ? <SettingsNavigation admin={admin} /> : <>
+          <nav className="product-nav product-primary-nav" aria-label="Main navigation">
+            <Link href="/conversation/new" aria-label="New chat" title="New chat" className={path === "/conversation/new" || path === "/" && query.get("guide") !== "1" ? "selected product-new-chat" : "product-new-chat"}><Plus size={18} /><span>New chat</span></Link>
+            <button onClick={onSearch} aria-label="Search workspace" title="Search workspace"><Search size={17} /><span>Search</span><kbd>⌘ K</kbd></button>
+            <Link href="/conversations" aria-label="Chats" title="Chats" className={path === "/conversations" ? "selected" : ""}><MessageSquare size={17} /><span>Chats</span></Link>
+            <Link href="/agents" aria-label="Agents" title="Agents" className={path.startsWith("/agents") ? "selected" : ""}><Bot size={17} /><span>Agents</span></Link>
+            <Link href="/inbox" aria-label="Work inbox" title="Work inbox" className={path === "/inbox" || path.startsWith("/work/") ? "selected" : ""}><Inbox size={17} /><span>Work inbox</span></Link>
+          </nav>
+          <div className="product-nav-section">
+            <button onClick={() => setPodsOpen(!podsOpen)} aria-expanded={podsOpen}>{podsOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}<span>Projects</span></button>
+            <Link href="/pods?create=1" aria-label="Create project"><Plus size={14} /></Link>
+          </div>
+          {podsOpen && <div className="product-nav-list">
+            {pods.filter(p => !p.archived).slice(0, 6).map(p => <Link className={activePodId === p.id ? "selected" : ""} key={p.id} href={"/pods/" + p.id}><Box size={16} /><span>{p.name}</span></Link>)}
+            <Link className="product-nav-empty" href={pods.some(p => !p.archived) ? "/pods" : "/pods?create=1"}>{pods.some(p => !p.archived) ? "All projects" : "Create your first project"}</Link>
+          </div>}
+          <div className="product-nav-section"><button onClick={() => setChatsOpen(!chatsOpen)} aria-expanded={chatsOpen}>{chatsOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}<span>Recent chats</span></button></div>
+          {chatsOpen && <div className="product-nav-list conversations">
+            {recent.map(c => <Link key={c.id} className={path === "/conversation/" + c.id ? "selected" : ""} href={"/conversation/" + c.id}><span>{c.title}</span></Link>)}
+            {!recent.length && <p className="product-nav-hint">Your chats will appear here.</p>}
+          </div>}
+          </>}
         </div>
         <footer className="product-rail-footer">
-          <button
-            className="product-icon-button"
-            aria-label={
-              theme === "dark"
-                ? "Switch to light appearance"
-                : "Switch to dark appearance"
-            }
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          >
-            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
-          <details className="product-user-menu">
-            <summary>
+          <details className="product-user-menu" ref={profileMenu} open={profileOpen} onToggle={event => setProfileOpen(event.currentTarget.open)}>
+            <summary ref={profileSummary} aria-label="Profile and settings" title="Profile and settings" aria-expanded={profileOpen}>
               <span className="product-user-avatar">
                 {user.name
                   .split(" ")
@@ -403,12 +204,13 @@ export function ProductShell({
               <ChevronDown size={13} />
             </summary>
             <div className="product-user-popover">
-              <strong>Workspace</strong>
-              <OrganizationPicker />
-              <Link href="/settings?section=team">
-                <Users size={15} />
-                Manage members
-              </Link>
+              <div className="product-profile-header"><span className="product-user-avatar">{user.name.split(" ").map(s => s[0]).slice(0,2).join("")}</span><div><strong>{user.name}</strong><small>{user.organizationName}</small></div><span className="product-profile-role">{user.role}</span></div>
+              <div className="product-profile-theme"><span>Appearance</span><div role="group" aria-label="Appearance"><button type="button" aria-label="Light appearance" aria-pressed={theme === "light"} onClick={() => { localStorage.setItem("aix-theme", "light"); setTheme("light"); window.dispatchEvent(new Event("aix-theme-change")); }}><Sun size={14} /> Light</button><button type="button" aria-label="Dark appearance" aria-pressed={theme === "dark"} onClick={() => { localStorage.setItem("aix-theme", "dark"); setTheme("dark"); window.dispatchEvent(new Event("aix-theme-change")); }}><Moon size={14} /> Dark</button></div></div>
+              <div className="product-profile-workspace"><strong>Workspace</strong><OrganizationPicker /></div>
+              <nav className="product-profile-links" aria-label="Profile tools" onClick={() => setProfileOpen(false)}>
+                <Link href="/settings?section=appearance"><Settings2 size={16} /><span>Settings</span></Link>
+                {admin && <Link href="/settings?section=team"><Users size={16} /><span>Invite members</span></Link>}
+              </nav>
               <button
                 onClick={async () => {
                   await authClient.signOut();
@@ -426,8 +228,11 @@ export function ProductShell({
         <header className="product-mobile-header">
           <button
             className="product-icon-button"
+            ref={mobileToggle}
             onClick={() => setMobile(true)}
             aria-label="Open navigation"
+            aria-expanded={mobile}
+            aria-controls="aix-sidebar"
           >
             <Menu size={20} />
           </button>

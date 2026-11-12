@@ -1,4 +1,5 @@
 "use client";
+import { calendarWindowsFromToolInput } from "@/lib/calendar-review";
 import { RunFeedback } from "@/components/product/run-feedback";
 import { PodsNav } from "@/components/employees/pods-nav";
 import { useRouter } from "next/navigation";
@@ -211,12 +212,19 @@ export default function Workspace({
     "agent" | "search" | "help" | "delete" | null
   >(null);
   const [picker, setPicker] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
   const [filter, setFilter] = useState("All agents");
   const [viewDoc, setViewDoc] = useState<Document | null>(null);
   const [attached, setAttached] = useState<Document | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const file = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!picker) return;
+    const dismiss = (event: PointerEvent) => { if (event.target instanceof Node && !pickerRef.current?.contains(event.target)) setPicker(false); };
+    document.addEventListener("pointerdown", dismiss);
+    return () => document.removeEventListener("pointerdown", dismiss);
+  }, [picker]);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const teamAgents = [
     ...allAgents.filter((a) => !defaults.some((d) => d.id === a.id)).reverse(),
@@ -775,10 +783,22 @@ export default function Workspace({
       toast((e as Error).message);
     }
   }
+  function openConversationBuilder(description: string) {
+    try {
+      sessionStorage.setItem(`aix-agent-chat-goal:${workspaceOrganizationId}:${workspaceUserId}`, description.slice(0, 4000));
+      router.push("/conversation/new?build=agent");
+    } catch {
+      setComposerError("Your message could not be carried over. Copy it before opening the agent builder.");
+    }
+  }
   async function send(text = input) {
     if (!text.trim() || busy || missingAgent || missingChat) return;
     if (!signedIn) {
       toast("Sign in to run your agents.");
+      return;
+    }
+    if (productMode && !active && agent.id === "xcelerate" && /^(?:please\s+)?(?:create|build|make)\s+(?:me\s+)?(?:a|an)\s+(?:new\s+)?agent\b/i.test(text.trim())) {
+      openConversationBuilder(text);
       return;
     }
     if (
@@ -970,7 +990,7 @@ export default function Workspace({
     </span>
   );
   const agentChooser = (
-    <div className="composer-agent">
+    <div className="composer-agent" ref={pickerRef}>
       <button
         type="button"
         className="agent-selector"
@@ -989,6 +1009,7 @@ export default function Workspace({
             <button
               type="button"
               key={a.id}
+              aria-pressed={a.id === agentId}
               onClick={() => {
                 setAgentId(a.id);
                 setPicker(false);
@@ -1001,6 +1022,11 @@ export default function Workspace({
               {a.id === agentId && <Check size={16} />}
             </button>
           ))}
+          {productMode && !active && (
+            <button type="button" className="agent-menu-create" onClick={() => openConversationBuilder(input)}>
+              <Plus size={16} /> <span>Create an agent</span>
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -1433,18 +1459,16 @@ export default function Workspace({
                 productMode ? (
                   <div className={"work-start " + (podId ? "in-pod" : "")}>
                     <div className="work-start-heading">
-                      {!podId && <Mark />}
+                      {!podId && <div className="work-start-emblem" aria-hidden="true"><Mark /></div>}
                       <h1>
                         {podId
                           ? workspaceName
-                          : "What would you like to work on, " +
-                            (user.split(" ")[0] || "there") +
-                            "?"}
+                          : agentId === "xcelerate" ? "What will you make happen?" : "Talk to " + agent.name}
                       </h1>
                       <p>
                         {podId
                           ? "Conversations, files, and tasks for this project stay together here."
-                          : "Start with a question. Choose an agent when you need a specialist."}
+                          : agentId === "xcelerate" ? "Bring your ideas, your work, and your questions. Let's move them forward together." : agent.description}
                       </p>
                     </div>
                     {missingAgent || missingChat ? (
@@ -1463,17 +1487,20 @@ export default function Workspace({
                         <div className="work-suggestions">
                           {[
                             {
-                              title: "Turn a document into a clear summary",
+                              title: "Summarize notes",
+                              description: "Find the important points",
                               text: "Summarize a document for me. Ask me to attach the source and tell you who the summary is for.",
                               icon: "book",
                             },
                             {
-                              title: "Draft something for my next project",
+                              title: "Draft something",
+                              description: "Go from idea to first draft",
                               text: "Help me draft something for my project. Ask me about the goal, audience, and context.",
                               icon: "pen",
                             },
                             {
                               title: "Think through a decision",
+                              description: "Explore your options clearly",
                               text: "Help me think through a decision. Ask me about my options, constraints, and what success looks like.",
                               icon: "bulb",
                             },
@@ -1488,20 +1515,17 @@ export default function Workspace({
                                 } catch {}
                               }}
                             >
-                              <Icon name={p.icon} size={17} />
-                              <span>{p.title}</span>
+                              <span className="work-suggestion-icon"><Icon name={p.icon} size={17} /></span>
+                              <span className="work-suggestion-copy"><strong>{p.title}</strong><small>{p.description}</small></span>
                               <ArrowRight size={15} />
                             </button>
                           ))}
                         </div>
                         <div className="work-start-links">
-                          <button onClick={() => router.push("/agents")}>
-                            Discover agents <ArrowUpRight size={14} />
-                          </button>
-                          <span>or</span>
-                          <button onClick={() => router.push("/pods?create=1")}>
-                            Create a project Pod <Plus size={14} />
-                          </button>
+                          <span>Not sure where to start?</span>
+                          <Link href="/?guide=1">Getting started</Link>
+                          <span className="work-start-divider" aria-hidden="true" />
+                          <Link href="/agents/new">Create an agent</Link>
                         </div>
                       </>
                     )}
@@ -1758,12 +1782,15 @@ export default function Workspace({
                                   calls with your connected accounts.
                                 </p>
                                 {m.pending.map((p) => (
-                                  <details key={p.id} open>
+                                  <div key={p.id}>
+                                  {calendarWindowsFromToolInput(p.input).map((window, index) => <div key={index}><strong>Calendar search window</strong><p>From: {window.start}<br />Until: {window.end}<br />Time zone: {window.timezone}</p><small>Events that overlap this window may be included.</small></div>)}
+                                  <details open>
                                     <summary>{toolLabel(p.tool)}</summary>
                                     <pre>
                                       {JSON.stringify(p.input, null, 2)}
                                     </pre>
                                   </details>
+                                  </div>
                                 ))}
                                 <div>
                                   <button
@@ -2092,7 +2119,7 @@ export default function Workspace({
                   <p>Authorize the apps your agents can use.</p>
                 </div>
               </div>
-              <Connections onSettings={() => navigate("settings")} />
+              <Connections key={`${workspaceOrganizationId || organization?.id}:${workspaceUserId || "uncached"}`} admin={organization?.role === "owner" || organization?.role === "admin"} userId={workspaceUserId} organizationId={workspaceOrganizationId || organization?.id} />
             </div>
           )}
           {page === "activity" && (

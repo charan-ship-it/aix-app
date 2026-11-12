@@ -36,6 +36,7 @@ export function ToolPermissions({
   }, [toolkit]);
   return (
     <div className="studio-tool-scope">
+      {(toolkit === "gmail" || toolkit === "outlook") && <p className="settings-note">For email privacy, only Gmail Fetch emails is currently executable. Other Gmail and Outlook tools are temporarily unavailable while their handling is verified.</p>}
       <label>
         Tool access
         <select

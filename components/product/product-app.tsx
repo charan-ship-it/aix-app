@@ -5,7 +5,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Archive,
   ArrowUpRight,
-  Bot,
   Box,
   Check,
   ChevronRight,
@@ -20,16 +19,16 @@ import {
   Users,
   X,
 } from "lucide-react";
-import Workspace from "@/app/workspace";
+import Workspace, { AgentIcon } from "@/app/workspace";
 import { ProductShell, type ProductUser } from "./product-shell";
 import { ProductModal } from "./modal";
 import { AgentCatalog, PodCatalog } from "./catalog";
 import { AgentStudio } from "./agent-studio";
+import { ConversationBuilder } from "./conversation-builder";
 import { FileLibrary } from "./file-library";
 import { SettingsView } from "./settings-view";
 import { PodTasks } from "./pod-tasks";
 import { Connections } from "@/components/platform/connections";
-import { MCPConnections } from "@/components/platform/mcp-connections";
 import { Activity } from "@/components/platform/activity";
 import { type AgentConfig } from "@/lib/agent-config";
 import type { Chat, Document } from "@/lib/workspace";
@@ -51,6 +50,7 @@ import { ConversationsIndex } from "./conversations-index";
 import { CreatePod, PodSettings } from "./pod-settings";
 import { HomeWorkbench, starterPrompts } from "./home-workbench";
 import "./product.css";
+import "./aix-refresh.css";
 export type ProductView =
   | "home"
   | "conversation"
@@ -289,9 +289,10 @@ export function ProductApp({
       ? [activeChat, ...allChats]
       : allChats;
   const ready = !!global?.providers.some(
-    (p) => p.provider !== "composio" && p.configured,
+    (p) => p.provider === (agent?.provider || "anthropic") && p.configured,
   );
-  const isConversation = view === "conversation";
+  const showGettingStarted = view === "home" && params.get("guide") === "1";
+  const isConversation = view === "conversation" || view === "home" && !showGettingStarted;
   const starter = params.get("starter");
   const initialPrompt = starter && Object.hasOwn(starterPrompts, starter)
     ? starterPrompts[starter as keyof typeof starterPrompts]
@@ -323,8 +324,10 @@ export function ProductApp({
             </button>
           </div>
         )}
-        {view === "home" ? (
+        {showGettingStarted ? (
           <HomeWorkbench key={user.organizationId} user={user} agents={allAgents} providers={global.providers} />
+        ) : isConversation && !actualChatId && params.get("build") === "agent" ? (
+          <ConversationBuilder key={user.organizationId + user.id} organizationId={user.organizationId} userId={user.id} providers={global.providers} documents={allDocs} onSave={saveAgent} />
         ) : isConversation ? (
           <>
             {actualChatId && (
@@ -391,15 +394,15 @@ export function ProductApp({
                       <PlugIcon />
                     </span>
                     <div>
-                      <strong>Connect a model to start working</strong>
+                      <strong>AI setup needed</strong>
                       <p>
                         {admin
-                          ? "Add OpenAI or Anthropic once for your organization. You can explore agents and create Pods now."
-                          : "Ask your workspace owner to connect OpenAI or Anthropic. You can explore agents and create Pods now."}
+                          ? "Connect AI for this workspace before running a message. You can prepare a draft now."
+                          : "Ask your workspace owner to enable AI. You can prepare a draft now."}
                       </p>
                     </div>
-                    <Link className="secondary" href="/settings">
-                      {admin ? "Connect model" : "View connections"}
+                    <Link className="secondary" href="/settings?section=models">
+                      {admin ? "Set up AI" : "View setup"}
                       <ArrowUpRight size={14} />
                     </Link>
                   </div>
@@ -410,13 +413,13 @@ export function ProductApp({
             )}
           </>
         ) : view === "conversations" ? (
-          <ConversationsIndex agents={allAgents} pods={pods} modelConnected={ready} />
+          <ConversationsIndex key={`${user.organizationId}:${user.id}`} userId={user.id} organizationId={user.organizationId} agents={allAgents} pods={pods} modelConnected={ready} />
         ) : view === "quality" ? (
           <QualityWorkspace admin={admin} />
         ) : view === "skills" ? (
-          <SkillsLibrary admin={admin} />
+          <SkillsLibrary key={`${user.organizationId}:${user.id}`} admin={admin} userId={user.id} organizationId={user.organizationId} />
         ) : view === "my-work" ? (
-          <MyWork />
+          <MyWork key={`${user.organizationId}:${user.id}`} userId={user.id} organizationId={user.organizationId} />
         ) : view === "work" && entityId ? (
           <WorkDetail key={`${user.organizationId}:${user.id}:${entityId}`} runId={entityId} />
         ) : view === "inbox" ? (
@@ -424,7 +427,9 @@ export function ProductApp({
         ) : view === "agents" ? (
           <AgentCatalog agents={allAgents} onArchive={archiveAgent} />
         ) : view === "studio" ? (
-          entityId && !agent ? (
+          !entityId ? (
+            <ConversationBuilder key={user.organizationId + user.id} organizationId={user.organizationId} userId={user.id} providers={global.providers} documents={allDocs} onSave={saveAgent} initialToolkit={params.get("toolkit") || undefined} />
+          ) : !agent ? (
             <Unavailable text="This agent is unavailable in your organization." />
           ) : (
             <AgentStudio
@@ -555,6 +560,9 @@ export function ProductApp({
               ) : section === "files" ? (
                 <div className="product-page-scroll">
                   <FileLibrary
+                    key={`${user.organizationId}:${user.id}:${pod.id}`}
+                    userId={user.id}
+                    organizationId={user.organizationId}
                     podId={pod.id}
                     documents={
                       (scoped.records.filter((r) => r.kind === "document") ||
@@ -606,7 +614,7 @@ export function ProductApp({
               </div>
             </header>
             <div className="product-page-scroll">
-              <FileLibrary documents={companyDocs} onChange={onChange} />
+              <FileLibrary key={`${user.organizationId}:${user.id}:company`} userId={user.id} organizationId={user.organizationId} documents={companyDocs} onChange={onChange} />
             </div>
           </>
         ) : view === "connections" ? (
@@ -620,9 +628,8 @@ export function ProductApp({
                 </p>
               </div>
             </header>
-            <div className="product-page-scroll">
-              <Connections onSettings={() => router.push("/settings")} />
-              <MCPConnections admin={admin} />
+            <div className="product-page-scroll connections-page">
+              <Connections key={`${user.organizationId}:${user.id}`} admin={admin} userId={user.id} organizationId={user.organizationId} />
             </div>
           </>
         ) : view === "settings" ? (
@@ -681,7 +688,7 @@ export function ProductApp({
                   title: a.name,
                   text: a.description,
                   href: "/agents/" + a.id,
-                  icon: Bot,
+                  icon: <AgentIcon agent={a} small />,
                 })),
               },
               {
@@ -693,7 +700,7 @@ export function ProductApp({
                     title: p.name,
                     text: p.description,
                     href: "/pods/" + p.id,
-                    icon: Box,
+                    icon: <Box size={16} aria-hidden="true" />,
                   })),
               },
               {
@@ -703,7 +710,7 @@ export function ProductApp({
                   title: c.title,
                   text: "Your conversation",
                   href: conversationHref(c),
-                  icon: MessageSquare,
+                  icon: <MessageSquare size={16} aria-hidden="true" />,
                 })),
               },
             ].map((group) => {
@@ -711,7 +718,7 @@ export function ProductApp({
                 .filter((i) =>
                   (i.title + " " + i.text)
                     .toLowerCase()
-                    .includes(search.toLowerCase()),
+                    .includes(search.trim().toLowerCase()),
                 )
                 .slice(0, 8);
               return list.length ? (
@@ -723,7 +730,7 @@ export function ProductApp({
                       key={i.id}
                       onClick={() => setSearchOpen(false)}
                     >
-                      <i.icon size={16} />
+                      <span className="product-search-result-icon" aria-hidden="true">{i.icon}</span>
                       <span>
                         <strong>{i.title}</strong>
                         <small>{i.text}</small>
@@ -734,6 +741,7 @@ export function ProductApp({
                 </section>
               ) : null;
             })}
+            {search.trim() && !agents.some(a => `${a.name} ${a.description}`.toLowerCase().includes(search.trim().toLowerCase())) && !pods.some(p => !p.archived && `${p.name} ${p.description}`.toLowerCase().includes(search.trim().toLowerCase())) && !allChats.some(c => `${c.title} Your conversation`.toLowerCase().includes(search.trim().toLowerCase())) && <p className="product-search-no-results" role="status">No results found. Try a different search.</p>}
           </div>
         </ProductModal>
       )}

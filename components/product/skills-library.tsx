@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BookOpen, History, Plus } from "lucide-react";
 import { request } from "@/lib/product-client";
+import { readListCache, writeListCache, clearListCache } from "@/lib/client-list-cache";
 import { toolkitCatalog } from "@/lib/agent-config";
 import { skillTemplates, type Skill, type SkillContent } from "@/lib/skills";
 import { ProductModal } from "./modal";
@@ -10,20 +11,22 @@ import "./skills-library.css";
 
 type Draft = SkillContent & { id?: string; expectedVersion: number };
 const blank = (): Draft => ({ name: "", description: "", instructions: "", expectedOutput: "", requiredToolkits: [], expectedVersion: 0 });
-export function SkillsLibrary({ admin }: { admin: boolean }) {
+export function SkillsLibrary({ admin, userId, organizationId }: { admin: boolean; userId: string; organizationId: string }) {
+  const cacheKey = JSON.stringify(["skills", userId, organizationId]);
   const [items, setItems] = useState<Skill[]>([]), [draft, setDraft] = useState<Draft>(),
     [versions, setVersions] = useState<{ name: string; items: (Skill & { publishedBy: string })[] }>(),
     [archived, setArchived] = useState(false), [search, setSearch] = useState(""),
     [loading, setLoading] = useState(true), [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
-  async function refresh() {
-    setLoading(true);
-    try { const d = await request<{ items: Skill[] }>("/api/skills?archived=1"); setItems(d.items); }
-    catch (e) { setError((e as Error).message); }
+  async function refresh(showLoading = true) {
+    if (showLoading) setLoading(true);
+    try { const d = await request<{ items: Skill[] }>("/api/skills?archived=1"); setItems(d.items); writeListCache(cacheKey, d.items); setError(""); }
+    catch (e) { clearListCache(cacheKey); setItems([]); setError((e as Error).message); }
     finally { setLoading(false); }
   }
-  useEffect(() => { void refresh(); }, []);
+  useEffect(() => { const cached = readListCache<Skill[]>(cacheKey); if (cached) { setItems(cached); setLoading(false); } void refresh(!cached); }, [cacheKey]);
   async function publish() {
     if (!draft) return;
+    clearListCache(cacheKey);
     setBusy(true); setError("");
     try {
       const { skill } = await request<{ skill: Skill }>("/api/skills", { action: "save", skill: draft });
@@ -31,6 +34,7 @@ export function SkillsLibrary({ admin }: { admin: boolean }) {
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
   async function toggleArchive(skill: Skill) {
+    clearListCache(cacheKey);
     setBusy(true); setError("");
     try {
       await request("/api/skills", { action: "archive", id: skill.id, expectedVersion: skill.version, archived: !skill.archived });

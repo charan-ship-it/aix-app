@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getDb } from "@/db";
 import { records } from "@/db/schema";
+import { assertVerifiedScribeOwner, canViewImportedScribeTask, verifiedScribeAccount } from "@/lib/server/scribe-identity";
 import {
   requireUser,
   readBody,
@@ -22,13 +23,14 @@ import {
 export async function GET() {
   try {
     const user = await requireUser();
-    const [tasks, settings, sources] = await Promise.all([
+    const [tasks, settings, sources, account] = await Promise.all([
       listPersonalTasks(user),
       workSettings(user),
       scribeSources(user),
+      verifiedScribeAccount(user.organizationId, user.userId),
     ]);
     return Response.json(
-      { tasks, settings: settings || null, sources, accountEmail: user.email },
+      { tasks, settings: settings || null, sources, accountEmail: user.email, accountEmailVerified: account?.emailVerified === true },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
@@ -72,6 +74,7 @@ export async function POST(req: Request) {
       db = getDb(),
       now = new Date().toISOString();
     if (body.action === "settings") {
+      assertVerifiedScribeOwner(body.ownerEmail, await verifiedScribeAccount(user.organizationId, user.userId));
       if (
         !(await scribeSources(user)).some(
           (source) => source.id === body.connectionId,
@@ -137,6 +140,7 @@ export async function POST(req: Request) {
         .for("update")
         .limit(1);
       if (!row) throw new AppError(404, "Personal task not found.");
+      if (!canViewImportedScribeTask(row.data as PersonalTask, await verifiedScribeAccount(user.organizationId, user.userId))) throw new AppError(404, "Personal task not found.");
       if (body.action === "delete") {
         await tx.delete(records).where(where);
         return undefined;

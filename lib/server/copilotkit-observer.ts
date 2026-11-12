@@ -5,6 +5,7 @@ import { Observable, throwError } from "rxjs";
 import type { WorkspaceUser } from "./http";
 import { AppError } from "./http";
 import { prepareAGUIObserver } from "./ag-ui";
+import { observerOwnerId } from "./observer-identity";
 
 /** Public AG-UI adapter API; no model, tool, queue, or business-run mutation is registered. */
 class BoundObservationAgent extends AbstractAgent {
@@ -65,7 +66,7 @@ export function createAIXCopilotHandler(user: WorkspaceUser, runId: string, chat
   // Supported runtime opt-out, also set in Docker. No Intelligence/public key is configured.
   // https://docs.copilotkit.ai/open-source-telemetry
   process.env.COPILOTKIT_TELEMETRY_DISABLED = "true";
-  const ownerId = JSON.stringify([user.organizationId, user.userId]);
+  const ownerId = observerOwnerId(user);
   // Official self-hosted TypeScript runtime + public AgentRunner interface.
   // https://docs.copilotkit.ai/agent-spec/backend/custom-ag-ui-agent
   const runtime = new CopilotRuntime({

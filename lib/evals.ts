@@ -5,10 +5,11 @@ export const evaluationChecksSchema = z
   .object({
     contains: z.array(z.string().trim().min(1).max(300)).max(10).default([]),
     notContains: z.array(z.string().trim().min(1).max(300)).max(10).default([]),
+    firstLineEquals: z.string().trim().min(1).max(300).optional(),
     maxChars: z.number().int().min(1).max(20000).optional(),
   })
   .refine(
-    (c) => c.contains.length + c.notContains.length + (c.maxChars ? 1 : 0) > 0,
+    (c) => c.contains.length + c.notContains.length + (c.maxChars ? 1 : 0) + (c.firstLineEquals ? 1 : 0) > 0,
     "Add at least one assertion per case.",
   );
 export const evaluationCaseSchema = z.object({
@@ -53,7 +54,7 @@ export const evaluationStartSchema = z
   })
   .strict();
 const assertionSchema = z.object({
-  kind: z.enum(["contains", "notContains", "maxChars"]),
+  kind: z.enum(["contains", "notContains", "maxChars", "firstLineEquals"]),
   expected: z.union([z.string(), z.number()]),
   passed: z.boolean(),
   actual: z.number().optional(),
@@ -61,7 +62,7 @@ const assertionSchema = z.object({
 export const evaluationOutputSchema = z.object({
   status: z.enum(["passed", "failed", "errored"]),
   text: z.string().max(60000),
-  assertions: z.array(assertionSchema).max(21),
+  assertions: z.array(assertionSchema).max(22),
   error: z.string().max(500).optional(),
 });
 export const evaluationRunSchema = z.object({
@@ -144,6 +145,7 @@ export function canonicalSuiteContent(suite: EvaluationSuite): string {
       checks: {
         contains: c.checks.contains,
         notContains: c.checks.notContains,
+        ...(c.checks.firstLineEquals ? { firstLineEquals: c.checks.firstLineEquals } : {}),
         ...(c.checks.maxChars ? { maxChars: c.checks.maxChars } : {}),
       },
     })),
@@ -153,6 +155,7 @@ export function canonicalSuiteContent(suite: EvaluationSuite): string {
 export function evaluateAssertions(text: string, checks: EvaluationChecks) {
   const folded = text.toLowerCase();
   return [
+    ...(checks.firstLineEquals ? [{kind:"firstLineEquals" as const, expected:checks.firstLineEquals, passed:text.trim().split(/\r?\n/,1)[0].trim().toLowerCase() === checks.firstLineEquals.toLowerCase()}] : []),
     ...checks.contains.map((expected) => ({
       kind: "contains" as const,
       expected,

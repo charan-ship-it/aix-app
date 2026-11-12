@@ -14,11 +14,14 @@ import {
 import { FileText, Folder, X, Trash2 } from "@/components/mike-icons";
 import type { Document } from "@/lib/workspace";
 import type { FileFolder } from "@/lib/folders";
+import { clearListCache, readListCache, writeListCache } from "@/lib/client-list-cache";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import "./file-library.css";
 
 type Props = {
+  userId: string;
+  organizationId: string;
   podId?: string;
   agentId?: string;
   documents: Document[];
@@ -63,6 +66,8 @@ function status(document: Document) {
 }
 
 export function FileLibrary({
+  userId,
+  organizationId,
   podId,
   agentId,
   documents,
@@ -87,22 +92,28 @@ export function FileLibrary({
   const scopeQuery = new URLSearchParams(
     podId ? { podId } : agentId ? { agentId } : {},
   ).toString();
+  const folderCacheKey = JSON.stringify(["folders", userId, organizationId, scopeQuery]);
   const loadFolders = useCallback(async () => {
     try {
       const data = await request(`/api/folders?${scopeQuery}`);
+      writeListCache(folderCacheKey, data.folders);
       setFolders(data.folders);
     } catch (e) {
+      clearListCache(folderCacheKey);
+      setFolders([]);
       setError(e instanceof Error ? e.message : "Folders could not be loaded.");
     } finally {
       setLoading(false);
     }
-  }, [scopeQuery]);
+  }, [folderCacheKey, scopeQuery]);
   useEffect(() => {
     setFolderId(undefined);
     setPreviewId(undefined);
-    setLoading(true);
+    const cached = readListCache<FileFolder[]>(folderCacheKey);
+    if (cached) { setFolders(cached); setLoading(false); }
+    else { setFolders([]); setLoading(true); }
     void loadFolders();
-  }, [loadFolders]);
+  }, [folderCacheKey, loadFolders]);
   useEffect(() => {
     if (
       !documents.some((d) =>
@@ -197,6 +208,7 @@ export function FileLibrary({
     setMenuId(undefined);
   }
   async function perform(action: () => Promise<void>) {
+    clearListCache(folderCacheKey);
     setBusy(true);
     setError("");
     setNotice("");
@@ -402,12 +414,14 @@ export function FileLibrary({
         </div>
       </div>
       <div className="file-v2-table">
-        <div className="file-v2-table-head">
-          <span>Name</span>
-          <span>Status</span>
-          <span>Updated</span>
-          <span />
-        </div>
+        {!loading && (matchingFolders.length > 0 || matchingDocuments.length > 0) && (
+          <div className="file-v2-table-head">
+            <span>Name</span>
+            <span>Status</span>
+            <span>Updated</span>
+            <span />
+          </div>
+        )}
         {loading ? (
           <div className="file-v2-empty" role="status">
             Loading files…
@@ -426,7 +440,7 @@ export function FileLibrary({
                 : "Upload a document or write a note. Agents can use these files when answering questions and completing tasks."}
             </p>
             {!query && (
-              <button onClick={() => input.current?.click()}>
+              <button className="file-v2-primary" onClick={() => input.current?.click()}>
                 <Upload size={16} />
                 Upload your first file
               </button>

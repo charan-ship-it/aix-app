@@ -33,9 +33,9 @@
 }
 .conversations-v2-clear { display: inline-flex; align-items: center; gap: 5px; padding: 10px 0; border: 0; color: var(--muted); background: transparent; font-size: 12px; cursor: pointer; }
 .conversations-v2-body { flex: 1; min-height: 0; overflow: auto; padding: 22px 30px 40px; scrollbar-gutter: stable; }
-.conversations-v2-privacy { display: flex; align-items: start; gap: 7px; color: var(--muted); font-size: 11px; line-height: 1.6; margin: 0 0 24px; }
+.product-shell .conversations-v2-privacy { display: flex; align-items: start; gap: 7px; color: var(--muted); font-size: 11px; line-height: 1.6; margin: 0 0 20px; }
 .conversations-v2-privacy svg { flex-shrink: 0; margin-top: 2px; }
-.conversations-v2-count { margin: 0 0 12px; color: var(--muted); font-size: 12px; }
+.product-shell .conversations-v2-count { margin: 0 0 12px; color: var(--muted); font-size: 12px; }
 .conversations-v2-list { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .conversations-v2-row { display: flex; align-items: center; gap: 14px; padding: 19px 20px; color: var(--ink); text-decoration: none; background: var(--panel); }
 .conversations-v2-row + .conversations-v2-row { border-top: 1px solid var(--line); }

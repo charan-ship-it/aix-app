@@ -138,14 +138,18 @@
   border: 1px solid var(--line2);
   background: var(--panel);
   color: var(--muted);
-  padding: 0 9px;
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0 36px 0 12px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2398a2b3' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
   border-radius: 5px;
   font-size: 12px;
 }
 .file-v2-table {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
+  border: 0;
+  background: transparent;
 }
 .file-v2-table-head,
 .file-v2-row {
@@ -157,12 +161,11 @@
 }
 .file-v2-table-head {
   height: 38px;
-  background: var(--panel2);
-  border-radius: 7px 7px 0 0;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 500;
-  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--line2);
 }
 .file-v2-row {
   min-height: 64px;
@@ -172,7 +175,7 @@
   border-bottom: 0;
 }
 .file-v2-row:hover {
-  background: var(--panel2);
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
 }
 .file-v2 .file-v2-name {
   border: 0;
@@ -263,13 +266,15 @@
 .file-v2-empty-icon {
   width: 52px;
   height: 52px;
-  border-radius: 12px;
-  background: var(--panel2);
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1px solid var(--line2);
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 12%, transparent), 0 0 0 16px color-mix(in srgb, var(--accent) 6%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 18px;
-  color: var(--muted);
+  margin: 16px 0 30px;
+  color: var(--accent-ink);
 }
 .file-v2-empty h3 {
   color: var(--ink);
@@ -280,6 +285,10 @@
 .file-v2-empty p {
   max-width: 360px;
   line-height: 1.7;
+  margin: 0 0 20px;
+}
+/* The workspace reset must not remove the space before the action. */
+.product-shell .file-v2-empty p {
   margin: 0 0 20px;
 }
 .file-v2-hint {

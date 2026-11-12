@@ -1,4 +1,5 @@
-import { agentSchema, builtinToolCatalog, toolkitCatalog } from "@/lib/agent-config";
+import { builtinToolCatalog, toolkitCatalog } from "@/lib/agent-config";
+import { generatedAgentDraftSchema } from "@/lib/agent-draft";
 import { z } from "zod";
 import { generateObject } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
@@ -43,15 +44,7 @@ export async function POST(req: Request) {
           })(b.data.model);
     const result = await generateObject({
       model,
-      schema: agentSchema.pick({
-        name: true,
-        description: true,
-        instructions: true,
-        starters: true,
-        tools: true,
-        toolkits: true,
-        knowledgeScope: true,
-      }),
+      schema: generatedAgentDraftSchema,
       system:
         "Draft a specialist AI employee for the business role described by the user. Write specific instructions with responsibilities, required inputs, output format, evidence and citations, measurable quality checks, uncertainty, exception handling, and human approval boundaries. Recommend only the minimum tools and apps needed. The transcript action items tool analyzes provided text; it does not fetch recordings or create external tasks. Workspace tools: " +
         JSON.stringify(builtinToolCatalog) +

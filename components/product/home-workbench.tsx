@@ -66,13 +66,13 @@ export function HomeWorkbench({ user, agents, providers }: { user: ProductUser; 
   const draftHref = taskAgent ? `/conversation/new?agent=${encodeURIComponent(taskAgent.id)}&starter=${goal}` : null;
   return <>
     <header className="product-page-head workbench-head">
-      <h1>Home</h1>
+      <h1>Getting started</h1>
       <span className="workbench-private"><Lock size={14} aria-hidden="true" /> Your personal workspace</span>
     </header>
     <div className="product-page-scroll workbench-scroll">
       <div className="workbench">
         <section className="workbench-intro">
-          <h2>What would you like to get done?</h2>
+          <h2>Start with one useful task</h2>
           <p>Start with one task. Bring in the context it needs, then review the result here.</p>
         </section>
         {error && <div className="workbench-error" role="alert"><p>{error}</p><button className="secondary" onClick={() => setRevision(r => r + 1)}><RefreshCw size={14} aria-hidden="true" /> Retry</button></div>}

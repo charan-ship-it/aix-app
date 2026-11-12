@@ -4,6 +4,7 @@ import { records, runs } from "@/db/schema";
 import type { WorkDetail, WorkLink } from "@/lib/work-detail";
 import { AppError, type WorkspaceUser } from "./http";
 import { readConversationAccess, requireCurrentMembership } from "./conversation-access";
+import { reconcileToolTrace } from "./tool-trace";
 
 type JsonObject = Record<string, unknown>;
 function object(value: unknown): JsonObject {
@@ -99,7 +100,9 @@ export async function readWorkDetail(u: WorkspaceUser, id: string): Promise<Work
     .map(item => ({ id: text(item.id, 200), tool: text(item.tool, 200), input: evidence.scrub(item.input) }));
   const approvalPreviewComplete = run.status !== "awaiting_approval" ||
     (pending.length > 0 && pending.length === rawPending.length && !evidence.isTruncated());
-  const trace = array(payload.trace ?? message?.trace).slice(0, 100).map(object)
+  const rawTrace = array(payload.trace ?? message?.trace).slice(0, 100).map(object)
+    .filter((item): item is { tool: string; status: string; toolCallId?: string; input?: unknown; output?: unknown } => typeof item.tool === "string" && typeof item.status === "string");
+  const trace = reconcileToolTrace(rawTrace, payload.messages)
     .filter(item => typeof item.tool === "string" && typeof item.status === "string")
     .map(item => ({ tool: text(item.tool, 200), status: text(item.status, 100),
       ...(item.input === undefined ? {} : { input: evidence.scrub(item.input) }),

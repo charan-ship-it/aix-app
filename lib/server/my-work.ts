@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { and, eq, desc } from "drizzle-orm";
 import { getDb } from "@/db";
-import { records } from "@/db/schema";
+import { records, user, member } from "@/db/schema";
+import { assertVerifiedScribeOwner, canViewImportedScribeTask, verifiedScribeAccount } from "./scribe-identity";
 import type { WorkspaceUser } from "./http";
 import { AppError } from "./http";
 import { mcpConnectionSchema } from "@/lib/mcp";
@@ -36,7 +37,8 @@ export async function listPersonalTasks(u: WorkspaceUser) {
     .from(records)
     .where(personalWhere(u, "personal-task"))
     .orderBy(desc(records.updatedAt));
-  return rows.map((row) => row.data as PersonalTask);
+  const account = await verifiedScribeAccount(u.organizationId, u.userId);
+  return rows.map((row) => row.data as PersonalTask).filter(task => canViewImportedScribeTask(task, account));
 }
 export async function scribeSources(u: WorkspaceUser) {
   const rows = await getDb()
@@ -134,6 +136,7 @@ export async function syncScribe(u: WorkspaceUser) {
           409,
           "Confirm your Scribe owner email before importing tasks.",
         );
+      assertVerifiedScribeOwner(settings.ownerEmail, await verifiedScribeAccount(u.organizationId, u.userId));
       if (
         !(await scribeSources(u)).some(
           (source) => source.id === settings.connectionId,
@@ -179,6 +182,8 @@ export async function syncScribe(u: WorkspaceUser) {
       const { collected, partial, skipped, pages } = fetched;
       const now = new Date().toISOString();
       await getDb().transaction(async (tx) => {
+        const [account] = await tx.select({email:user.email,emailVerified:user.emailVerified}).from(user).innerJoin(member,and(eq(member.userId,user.id),eq(member.organizationId,u.organizationId))).where(eq(user.id,u.userId)).for("share").limit(1);
+        assertVerifiedScribeOwner(settings.ownerEmail, account);
         // Settings may have changed while a remote page was loading. Never import under a stale identity mapping.
         const [current] = await tx
           .select()

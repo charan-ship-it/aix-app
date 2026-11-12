@@ -7,6 +7,7 @@ import { ProductModal } from "@/components/product/modal";
 type MCPTool = { name: string; description?: string; inputSchema: unknown };
 export function MCPConnections({ admin }: { admin: boolean }) {
   const [items, setItems] = useState<MCPConnectionSummary[]>([]),
+    [managing, setManaging] = useState(false),
     [editing, setEditing] = useState<MCPConnection>(),
     [token, setToken] = useState(""),
     [busy, setBusy] = useState(false),
@@ -46,18 +47,10 @@ export function MCPConnections({ admin }: { admin: boolean }) {
     }
   }
   return (
-    <section className="mcp-connections">
-      <div className="connection-toolbar">
-        <div>
-          <h2>MCP servers</h2>
-          <p className="settings-note">
-            Connect once for your organization. Choose specific server tools in
-            each agent. Every MCP call requires approval.
-          </p>
-        </div>
+    <div className="mcp-connection-controls">
         {admin && (
           <button
-            className="secondary"
+            className="primary"
             onClick={() => {
               setToken("");
               setError("");
@@ -69,17 +62,18 @@ export function MCPConnections({ admin }: { admin: boolean }) {
               });
             }}
           >
-            <Plus size={15} /> Add MCP server
+            <Plus size={15} /> Add MCP
           </button>
         )}
-      </div>
+        <button className="secondary" onClick={() => setManaging(true)}>Manage MCP{items.length > 0 ? ` (${items.length})` : ""}</button>
+      {managing && !editing && !tools && <ProductModal title="MCP servers" onClose={() => setManaging(false)} wide>
+      <div className="product-modal-body mcp-management">
+      <p className="settings-note">Workspace servers can be used by agents with approval.</p>
       {!items.length && (
         <div className="product-context-note">
           <strong>Bring your own tools</strong>
           <p>
-            Add a public HTTPS MCP endpoint and optional bearer token. The app
-            checks its handshake and discovers real tools before saving. Tokens
-            are encrypted; access is shared within your organization.
+            Add an MCP server to make its tools available in this workspace.
           </p>
         </div>
       )}
@@ -144,6 +138,8 @@ export function MCPConnections({ admin }: { admin: boolean }) {
           {error}
         </p>
       )}
+      </div>
+      </ProductModal>}
       {editing && (
         <ProductModal
           title="MCP connection"
@@ -242,6 +238,6 @@ export function MCPConnections({ admin }: { admin: boolean }) {
           </div>
         </ProductModal>
       )}
-    </section>
+    </div>
   );
 }

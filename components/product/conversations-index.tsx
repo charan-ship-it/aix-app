@@ -8,12 +8,15 @@ import type { AgentConfig } from "@/lib/agent-config";
 import type { Pod } from "@/lib/pods";
 import type { ConversationIndexItem, ConversationIndexPage } from "@/lib/conversation-index";
 import { conversationHref, request } from "@/lib/product-client";
+import { readListCache, writeListCache, clearListCache } from "@/lib/client-list-cache";
 import "./conversations-index.css";
 
-export function ConversationsIndex({ agents, pods, modelConnected }: {
+export function ConversationsIndex({ agents, pods, modelConnected, userId, organizationId }: {
   agents: AgentConfig[];
   pods: Pod[];
   modelConnected: boolean;
+  userId: string;
+  organizationId: string;
 }) {
   const routeParams = useSearchParams();
   const debouncedQuery = routeParams.get("q") || "";
@@ -47,6 +50,7 @@ export function ConversationsIndex({ agents, pods, modelConnected }: {
   if (agentId) params.set("agentId", agentId);
   if (podId) params.set("podId", podId);
   const queryString = params.toString();
+  const cacheKey = JSON.stringify(["conversations", userId, organizationId, queryString]);
   const changingQuery = query.trim() !== debouncedQuery;
   const filtered = !!(query.trim() || agentId || podId);
 
@@ -54,19 +58,26 @@ export function ConversationsIndex({ agents, pods, modelConnected }: {
     const controller = new AbortController();
     generation.current++;
     pageRequest.current?.abort();
+    const usable = readListCache<ConversationIndexPage>(cacheKey);
     setLoading(true);
     setLoadingMore(false);
     setError("");
-    setItems([]);
-    setCursor(null);
+    setItems(usable?.items || []);
+    setCursor(usable?.nextCursor || null);
     void request<ConversationIndexPage>(`/api/conversations?${queryString}`, undefined, controller.signal)
       .then((result) => {
         if (controller.signal.aborted) return;
+        writeListCache(cacheKey, result);
         setItems(result.items);
         setCursor(result.nextCursor);
       })
       .catch((cause) => {
-        if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Conversations could not be loaded.");
+        if (!controller.signal.aborted) {
+          clearListCache(cacheKey);
+          setItems([]);
+          setCursor(null);
+          setError(cause instanceof Error ? cause.message : "Conversations could not be loaded.");
+        }
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
@@ -75,7 +86,7 @@ export function ConversationsIndex({ agents, pods, modelConnected }: {
       controller.abort();
       pageRequest.current?.abort();
     };
-  }, [queryString, revision]);
+  }, [cacheKey, queryString, revision]);
 
   async function loadMore() {
     if (!cursor || loading || loadingMore || changingQuery) return;
@@ -155,7 +166,7 @@ export function ConversationsIndex({ agents, pods, modelConnected }: {
       <div className="conversations-v2-body" aria-busy={loading || loadingMore}>
         <p className="conversations-v2-privacy"><Lock size={13} />Only your conversations, including those in projects you can currently access.</p>
         {error && <div className="conversations-v2-error" role="alert"><span>{error}</span><button className="secondary" onClick={() => items.length ? void loadMore() : setRevision((value) => value + 1)} disabled={loadingMore}>Try again</button></div>}
-        {loading ? <div className="conversations-v2-loading" role="status"><Loader2 size={19} className="conversations-v2-spinner" />Loading conversations…</div> : items.length ? (
+        {loading && !items.length ? <div className="conversations-v2-loading" role="status"><Loader2 size={19} className="conversations-v2-spinner" />Loading conversations…</div> : items.length ? (
           <>
             <p className="conversations-v2-count" aria-live="polite">{items.length} conversation{items.length === 1 ? "" : "s"} shown{cursor ? " · More available" : ""}</p>
             <div className="conversations-v2-list">
@@ -169,7 +180,7 @@ export function ConversationsIndex({ agents, pods, modelConnected }: {
                 <ChevronRight size={16} className="conversations-v2-chevron" />
               </Link>)}
             </div>
-            {cursor && <div className="conversations-v2-more"><button className="secondary" disabled={loadingMore || changingQuery} onClick={() => void loadMore()}>{loadingMore ? <><Loader2 size={14} className="conversations-v2-spinner" />Loading…</> : "Load more conversations"}</button></div>}
+            {cursor && <div className="conversations-v2-more"><button className="secondary" disabled={loading || loadingMore || changingQuery} onClick={() => void loadMore()}>{loadingMore ? <><Loader2 size={14} className="conversations-v2-spinner" />Loading…</> : "Load more conversations"}</button></div>}
           </>
         ) : !error && (
           <div className="product-empty conversations-v2-empty">

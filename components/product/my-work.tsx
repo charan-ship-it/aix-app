@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { ProductModal } from "./modal";
+import { clearListCache, readListCache, writeListCache } from "@/lib/client-list-cache";
 import {
   taskDateGroup,
   taskDueDay,
@@ -26,8 +27,9 @@ type Data = {
   settings: PersonalWorkSettings | null;
   sources: { id: string; name: string }[];
   accountEmail: string;
+  accountEmailVerified: boolean;
 };
-async function request(url: string, body?: unknown) {
+async function requestWork(url: string, body?: unknown) {
   const response = await fetch(
     url,
     body
@@ -54,7 +56,12 @@ function displayDate(value: string) {
     value.length === 10 ? `${value}T12:00:00` : value,
   ).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
-export function MyWork() {
+export function MyWork({ userId, organizationId }: { userId: string; organizationId: string }) {
+  const cacheKey = JSON.stringify(["my-work", userId, organizationId]);
+  const request = useCallback((url: string, body?: unknown) => {
+    if (body !== undefined) clearListCache(cacheKey);
+    return requestWork(url, body);
+  }, [cacheKey]);
   const [data, setData] = useState<Data | null>(null),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
@@ -76,14 +83,17 @@ export function MyWork() {
     [meeting, setMeeting] = useState("");
   const load = useCallback(async () => {
     const result: Data = await request("/api/my-work");
+    writeListCache(cacheKey, result);
     setData(result);
     return result;
-  }, []);
+  }, [cacheKey, request]);
   useEffect(() => {
+    const cached = readListCache<Data>(cacheKey);
+    if (cached) { setData(cached); setLoading(false); }
     void load()
-      .catch((error) => setError(error.message))
+      .catch((error) => { clearListCache(cacheKey); setData(null); setError(error.message); })
       .finally(() => setLoading(false));
-  }, [load]);
+  }, [cacheKey, load]);
   const groups = useMemo(() => {
     const result = {
       upcoming: [] as PersonalTask[],
@@ -116,7 +126,7 @@ export function MyWork() {
   }
   function configure() {
     setConnectionId(data?.settings?.connectionId || data?.sources[0]?.id || "");
-    setOwnerEmail(data?.settings?.ownerEmail || data?.accountEmail || "");
+    setOwnerEmail(data?.accountEmail || "");
     setConfirmed(false);
     setError("");
     setSourceOpen(true);
@@ -187,6 +197,8 @@ export function MyWork() {
               "Connect your own Scribe owner identity to import only tasks assigned to you."
             )}
           </p>
+          {!data?.accountEmailVerified && !loading && <small>Scribe import and previously imported Scribe items are unavailable until your AIX account email is verified. Verification is not yet available in this local setup; your saved items have not been deleted.</small>}
+          {data?.accountEmailVerified && data.settings && data.settings.ownerEmail.toLowerCase() !== data.accountEmail.toLowerCase() && <small>The saved Scribe identity does not match your verified AIX account. Update the identity to resume importing. Previously imported items for another address are hidden, not deleted.</small>}
           {data?.settings && (
             <small>
               {data.settings.lastSyncAt
@@ -207,7 +219,7 @@ export function MyWork() {
             </button>
           )}
           <button
-            disabled={!!busy || loading}
+            disabled={!!busy || loading || (!!data?.settings && !data.accountEmailVerified)}
             onClick={() => (data?.settings ? void sync() : configure())}
           >
             {busy === "sync" ? (
@@ -380,9 +392,7 @@ export function MyWork() {
             }}
           >
             <p className="my-work-v2-helper">
-              Choose the connected source and enter the email Scribe uses for
-              your assignments. This mapping is confirmed by you; AIX cannot
-              independently verify your identity in Scribe.
+              Choose the connected source. Your Scribe owner email must match your verified AIX account email. The shared Scribe connection may have broader access; an email match does not verify access to individual meetings.
             </p>
             {error && (
               <p role="alert" className="my-work-v2-error">
@@ -420,10 +430,7 @@ export function MyWork() {
                 type="email"
                 maxLength={254}
                 value={ownerEmail}
-                onChange={(event) => {
-                  setOwnerEmail(event.target.value);
-                  setConfirmed(false);
-                }}
+                readOnly
                 placeholder="you@company.com"
               />
             </label>
@@ -435,8 +442,7 @@ export function MyWork() {
                 onChange={(event) => setConfirmed(event.target.checked)}
               />
               <span>
-                I confirm this is my own owner email in Scribe. Import only
-                assignments matching this exact email.
+                I understand this shared connection imports only assignments matching my verified account email.
               </span>
             </label>
             <p className="my-work-v2-helper">
@@ -453,7 +459,7 @@ export function MyWork() {
               </button>
               <button
                 className="my-work-v2-primary"
-                disabled={!!busy || !confirmed || !connectionId}
+                disabled={!!busy || !confirmed || !connectionId || !data?.accountEmailVerified}
               >
                 Save identity
               </button>

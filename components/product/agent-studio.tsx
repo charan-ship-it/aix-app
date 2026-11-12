@@ -29,7 +29,7 @@ import { ToolPermissions, WorkflowEditor } from "./tool-permissions";
 import { MCPPermissions } from "./mcp-permissions";
 import { integrationScenarios } from "@/lib/integration-tests";
 
-const templates: Array<{
+export const agentTemplates: Array<{
   name: string;
   description: string;
   instructions: string;
@@ -440,7 +440,7 @@ export function AgentStudio({
                 </p>
               </div>
               <div className="studio-v2-choices">
-                {templates.map((t) => (
+                {agentTemplates.map((t) => (
                   <button
                     key={t.name}
                     type="button"

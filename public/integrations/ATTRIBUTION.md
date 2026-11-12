@@ -1,0 +1,1 @@
+App logos are provided for identification of integrations. Gmail, Google Calendar, Google Drive, Outlook, Linear, Jira, and Zoho assets are from the AI Xccelerate UI template. GitHub, Notion, and HubSpot icons are from Simple Icons 16.36.0 (CC0-1.0). Slack and Salesforce icons are from Devicon 2.17.0 (MIT). Trademarks belong to their respective owners.
